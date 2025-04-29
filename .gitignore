@@ -1,0 +1,15 @@
+# Ignore Visual Studio specific files
+.vs/
+.vscode/
+.idea/
+
+# Ignore build and intermediate files
+bin/
+obj/
+
+# Ignore user-specific settings (e.g., Windows, macOS)
+*.log
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
