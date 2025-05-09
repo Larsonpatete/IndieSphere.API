@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IndieSphere.ServiceDefaults\IndieSphere.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\IndieSphere.Application\IndieSphere.Application.csproj" />
+    <ProjectReference Include="..\IndieSphere.Domain\IndieSphere.Domain.csproj" />
+    <ProjectReference Include="..\IndieSphere.Infrastructure\IndieSphere.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+  </ItemGroup>
+
+</Project>
