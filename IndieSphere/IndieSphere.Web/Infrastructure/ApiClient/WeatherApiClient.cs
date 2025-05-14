@@ -1,23 +1,27 @@
 namespace IndieSphere.Web.Infrastructure.ApiClient;
 
-public class WeatherApiClient(HttpClient httpClient)
+public class WeatherApiClient(IApiService api) 
 {
+    private readonly IApiService api = api;
     public async Task<WeatherForecast[]> GetWeatherAsync(int maxItems = 10, CancellationToken cancellationToken = default)
     {
         List<WeatherForecast>? forecasts = null;
 
-        await foreach (var forecast in httpClient.GetFromJsonAsAsyncEnumerable<WeatherForecast>("/weatherforecast", cancellationToken))
-        {
-            if (forecasts?.Count >= maxItems)
-            {
-                break;
-            }
-            if (forecast is not null)
-            {
-                forecasts ??= [];
-                forecasts.Add(forecast);
-            }
-        }
+        //await foreach (var forecast in )
+        //{
+        //    if (forecasts?.Count >= maxItems)
+        //    {
+        //        break;
+        //    }
+        //    if (forecast is not null)
+        //    {
+        //        forecasts ??= [];
+        //        forecasts.Add(forecast);
+        //    }
+        //}
+
+        forecasts ??= [];
+        forecasts.Add(await api.GetAsync<WeatherForecast>("/weatherforecast"));
 
         return forecasts?.ToArray() ?? [];
     }

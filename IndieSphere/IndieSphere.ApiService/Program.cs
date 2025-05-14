@@ -1,17 +1,20 @@
 using IndieSphere.Application;
+using IndieSphere.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
-// Add services to the container.
-builder.Services.AddProblemDetails();
+var connectionString = builder.Configuration.GetConnectionString("IndieSphereDb");
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services
+    .AddProblemDetails()
+    .AddOpenApi()
+    .AddApplicationServices(builder.Configuration)
+    .AddInfrastructureServices(connectionString)
+    .AddControllers()
+    ;
 
 var app = builder.Build();
 
@@ -40,6 +43,7 @@ app.MapGet("/weatherforecast", () =>
 .WithName("GetWeatherForecast");
 
 app.MapDefaultEndpoints();
+app.MapControllers();
 
 app.Run();
 

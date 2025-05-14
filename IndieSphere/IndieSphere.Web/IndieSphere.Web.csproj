@@ -6,6 +6,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<NoWarn>$(NoWarn);1701;1702;1003;1005;1109;1382;1382;17002;17008</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<NoWarn>$(NoWarn);1701;1702;1003;1005;1109;1382;1382;17002;17008</NoWarn>
+	</PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\IndieSphere.ServiceDefaults\IndieSphere.ServiceDefaults.csproj" />
     <ProjectReference Include="..\IndieSphere.Domain\IndieSphere.Domain.csproj" />
@@ -19,6 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.4" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
 </Project>
