@@ -2,36 +2,101 @@
 @rendermode InteractiveServer
 
 @using IndieSphere.Domain.User
-@using IndieSphere.Web.Infrastructure.UserClient;
+@using IndieSphere.Web.Infrastructure.Authentication;
+@using Microsoft.AspNetCore.Components.Authorization
 
-@inject UserClient service
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+@inject AuthService service
 
 <PageTitle>IndieSphere</PageTitle>
 
 
-<input type="number" @bind-value="userId" @bind-value:event="oninput" placeholder="Enter User ID" />
-<button class="btn btn-primary" @onclick=GetUser>Get User</button>
-
-<button @onclick=Test>Test btn</button>
+@* <input type="number" @bind-value="userId" @bind-value:event="oninput" placeholder="Enter User ID" />
+<button class="btn btn-primary" @onclick=GetUser>Get User</button> 
 
 <h3>@user?.Username</h3>
-<h3>@test</h3>
+ *@
+
+<AuthorizeView>
+    <Authorized>
+        <p>Hi @context.User.Identity?.Name!</p>
+        <button @onclick="Logout" class="btn btn-secondary">Logout</button>
+
+
+@*         @if (user == null)
+        {
+            <p>Loading user profile...</p>
+        }
+        else
+        {
+            <div class="user-profile">
+                <img src="@user.ProfilePicture" alt="Profile picture" class="avatar" />
+                <p>Hi @user.Name!</p>
+                <button @onclick="Logout" class="btn btn-secondary">Logout</button>
+            </div>
+        } *@
+        
+    </Authorized>
+    <NotAuthorized>
+        <button @onclick=Login class="btn btn-primary">Login with Google</button>
+    </NotAuthorized>
+</AuthorizeView>
+
 
 @code {
-    private int userId = 0;
-    private User? user;
-    private string test = string.Empty;
+    // private int userId = 0;
+    // private User? user;
 
-    private void Test()
+    // private async Task GetUser()
+    // {
+    //     user = await service.GetUser(userId);
+    // }
+
+    private OAuthUser? user;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     await LoadUserData();
+    // }
+
+    // private async Task LoadUserData()
+    // {
+    //     try
+    //     {
+    //         isLoading = true;
+    //         errorMessage = null;
+
+    //         var authState = await AuthProvider.GetAuthenticationStateAsync();
+    //         if (authState.User.Identity?.IsAuthenticated ?? false)
+    //         {
+    //             user = await service.GetUser();
+    //         }
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         errorMessage = $"Failed to load user data: {ex.Message}";
+    //     }
+    //     finally
+    //     {
+    //         isLoading = false;
+    //         StateHasChanged();
+    //     }
+    // }
+
+    private void Login()
     {
-        test = "hello";
+        NavigationManager.NavigateTo("/Auth/login");
+
     }
 
-    private async Task GetUser()
+    private void Logout()
     {
-
-        user = await service.GetUser(userId);
-        
-
+        // await service.Logout();
+        user = null; // Clear user data immediately
+        NavigationManager.NavigateTo("/Auth/logout", forceLoad: true);
     }
 }
