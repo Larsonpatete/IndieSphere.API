@@ -4,8 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IndieSphere.ApiService.Controllers;
 
-[Route("api/users")]
-public class UserController(IMediator mediator) : ApiControllerBase
+public class UsersController(IMediator mediator) : ApiControllerBase
 {
     private readonly IMediator mediator = mediator;
 
