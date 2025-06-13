@@ -1,0 +1,52 @@
+﻿<div class="input-group">
+    <input @bind="searchTerm"
+           @bind:event="oninput"
+           @onkeydown="HandleKeyDown"
+           class="form-control"
+           placeholder="Find a song..."/>
+
+    <div class="input-group-append">
+        <button @onclick=SendMessage class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+
+</div>
+
+
+@code {
+    [Parameter]
+    public EventCallback<string> OnItemSelected { get; set; }
+
+    private string searchTerm = string.Empty;
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            // Call your function here with inputValue
+            await HandleSearch(searchTerm);
+
+            // Clear the input
+            searchTerm = string.Empty;
+        }
+    }
+
+    private async Task HandleSearch(string term)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+        {
+            return;
+        }
+
+        await OnItemSelected.InvokeAsync(term);
+    }
+}

@@ -1,13 +1,11 @@
 using IndieSphere.Web;
 using IndieSphere.Web.Infrastructure.ApiClient;
 using IndieSphere.Web.Infrastructure.Authentication;
+using IndieSphere.Web.Infrastructure.SpotifyClient;
 using IndieSphere.Web.Infrastructure.UserClient;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +28,7 @@ builder.Services.AddHttpClient<IApiService, ApiService>(client =>
 
 // Add authentication state management
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+builder.Services.AddScoped<ProtectedSessionStorage>();
 builder.Services.AddCascadingAuthenticationState();
 
 
@@ -37,37 +36,9 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services
     .AddTransient<UserClient>()
     .AddTransient<AuthService>()
+    .AddTransient<SpotifyClient>()
+    .AddTransient<SpotifyAuthService>()
     ;
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
-})
-    .AddCookie(options =>
-    {
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.HttpOnly = true;
-    })
-    .AddGoogle(options =>
-    {
-        options.ClientId = builder.Configuration["Authentication:Google:ClientId"];
-        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-        options.SaveTokens = true; // Important to save tokens
-
-        //// Explicitly set the callback path
-        //options.CallbackPath = new PathString("/api/auth/callback");
-
-        //// Required for proper claim mapping
-        //options.ClaimActions.MapJsonKey(ClaimTypes.NameIdentifier, "id");
-        //options.ClaimActions.MapJsonKey(ClaimTypes.Name, "name");
-        //options.ClaimActions.MapJsonKey(ClaimTypes.Email, "email");
-    });
-
-builder.Services.AddAuthorization();
-
-
 
 var app = builder.Build();
 
@@ -87,7 +58,7 @@ app.UseAntiforgery();
 app.MapControllers();
 
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode(); 
 
 app.MapDefaultEndpoints();
 app.Run();

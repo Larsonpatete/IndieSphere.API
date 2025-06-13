@@ -1,102 +1,24 @@
 ﻿@page "/"
-@rendermode InteractiveServer
 
-@using IndieSphere.Domain.User
-@using IndieSphere.Web.Infrastructure.Authentication;
-@using Microsoft.AspNetCore.Components.Authorization
+@using IndieSphere.Web.Shared.Components
 
-@inject AuthenticationStateProvider AuthProvider
-@inject NavigationManager NavigationManager
-@inject HttpClient Http
-@inject AuthService service
+@inject NavigationManager Navigation
+@* @rendermode InteractiveServer *@
 
 <PageTitle>IndieSphere</PageTitle>
 
-
-@* <input type="number" @bind-value="userId" @bind-value:event="oninput" placeholder="Enter User ID" />
-<button class="btn btn-primary" @onclick=GetUser>Get User</button> 
-
-<h3>@user?.Username</h3>
- *@
-
-<AuthorizeView>
-    <Authorized>
-        <p>Hi @context.User.Identity?.Name!</p>
-        <button @onclick="Logout" class="btn btn-secondary">Logout</button>
-
-
-@*         @if (user == null)
-        {
-            <p>Loading user profile...</p>
-        }
-        else
-        {
-            <div class="user-profile">
-                <img src="@user.ProfilePicture" alt="Profile picture" class="avatar" />
-                <p>Hi @user.Name!</p>
-                <button @onclick="Logout" class="btn btn-secondary">Logout</button>
-            </div>
-        } *@
-        
-    </Authorized>
-    <NotAuthorized>
-        <button @onclick=Login class="btn btn-primary">Login with Google</button>
-    </NotAuthorized>
-</AuthorizeView>
+<div style="width:50%">
+    <SearchBar OnItemSelected="HandleSearch"></SearchBar>
+</div>
 
 
 @code {
-    // private int userId = 0;
-    // private User? user;
-
-    // private async Task GetUser()
-    // {
-    //     user = await service.GetUser(userId);
-    // }
-
-    private OAuthUser? user;
-    private bool isLoading = true;
-    private string? errorMessage;
-
-    // protected override async Task OnInitializedAsync()
-    // {
-    //     await LoadUserData();
-    // }
-
-    // private async Task LoadUserData()
-    // {
-    //     try
-    //     {
-    //         isLoading = true;
-    //         errorMessage = null;
-
-    //         var authState = await AuthProvider.GetAuthenticationStateAsync();
-    //         if (authState.User.Identity?.IsAuthenticated ?? false)
-    //         {
-    //             user = await service.GetUser();
-    //         }
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         errorMessage = $"Failed to load user data: {ex.Message}";
-    //     }
-    //     finally
-    //     {
-    //         isLoading = false;
-    //         StateHasChanged();
-    //     }
-    // }
-
-    private void Login()
+    public void HandleSearch(string term)  
     {
-        NavigationManager.NavigateTo("/Auth/login");
+        // URL encode the search term to handle special characters
+        var encodedTerm = Uri.EscapeDataString(term);
 
-    }
-
-    private void Logout()
-    {
-        // await service.Logout();
-        user = null; // Clear user data immediately
-        NavigationManager.NavigateTo("/Auth/logout", forceLoad: true);
-    }
+        // Navigate to search component with term as route parameter
+        Navigation.NavigateTo($"/search/{encodedTerm}");
+    }  
 }

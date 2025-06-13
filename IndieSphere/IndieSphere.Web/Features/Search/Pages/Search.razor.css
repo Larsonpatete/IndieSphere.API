@@ -1,0 +1,73 @@
+﻿.music-container {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    max-width: 800px;
+    padding: 20px;
+    display: flex;
+}
+
+.song-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 20px;
+}
+
+.song-item {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+    .song-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+.song-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #212529;
+    grid-column: 1;
+}
+
+.song-artist {
+    font-size: 1rem;
+    color: #6c757d;
+    grid-column: 1;
+}
+
+.album-art {
+    grid-row: span 2;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.album-cover {
+    width: auto;
+    height: 200px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.no-art {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e9ecef;
+    border-radius: 8px;
+    color: #6c757d;
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 5px;
+}

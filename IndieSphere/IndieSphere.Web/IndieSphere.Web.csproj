@@ -22,7 +22,11 @@
   <ItemGroup>
     <Folder Include="Features\Home\Components\" />
     <Folder Include="Features\Home\Services\" />
-    <Folder Include="Shared\Components\" />
+    <Folder Include="Features\Search\Components\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\Full_Logo_Black_CMYK.svg" />
   </ItemGroup>
 
   <ItemGroup>
