@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IndieSphere.ApiService\IndieSphere.ApiService.csproj" />
-    <ProjectReference Include="..\IndieSphere.Web\IndieSphere.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
