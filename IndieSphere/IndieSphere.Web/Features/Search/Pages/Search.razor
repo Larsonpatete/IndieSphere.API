@@ -1,7 +1,7 @@
-﻿@page "/search/{term}"
-@using IndieSphere.Domain.Spotify
-@using IndieSphere.Web.Shared.Components
+﻿@* @page "/search/{term}"
+@using IndieSphere.Domain.Music
 @using IndieSphere.Web.Infrastructure.SpotifyClient;
+@using IndieSphere.Web.Shared.Components
 @using Microsoft.AspNetCore.Components.Authorization
 
 @inject SpotifyClient client
@@ -52,3 +52,4 @@
         }
     }
 }
+ *@

@@ -1,4 +1,4 @@
-﻿using IndieSphere.Domain.Spotify;
+﻿using IndieSphere.Domain.Music;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -92,63 +92,66 @@ public class SpotifyController(IConfiguration config) : ApiControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> Search(string query)
     {
-        var token = await GetClientCredentialsToken();
-        var spotify = new SpotifyClient(token);
+        //var token = await GetClientCredentialsToken();
+        //var spotify = new SpotifyClient(token);
 
-        var results = await spotify.Search.Item(new SearchRequest(
-            SearchRequest.Types.All,
-            query));
+        //var results = await spotify.Search.Item(new SearchRequest(
+        //    SearchRequest.Types.All,
+        //    query));
 
-        if (results?.Tracks?.Items == null)
-        {
-            return Ok(Enumerable.Empty<Song>());
-        }
+        //if (results?.Tracks?.Items == null)
+        //{
+        //    return Ok(Enumerable.Empty<Song>());
+        //}
 
-        var songs = results.Tracks.Items.Select(t =>
-        {
-            if (t == null) return null;
+        //var songs = results.Tracks.Items.Select(t =>
+        //{
+        //    if (t == null) return null;
 
-            // Get first artist
-            var primaryArtist = t.Artists?.FirstOrDefault();
-            var artistName = primaryArtist?.Name ?? string.Empty;
+        //    // Get first artist
+        //    var primaryArtist = t.Artists?.FirstOrDefault();
+        //    var artistName = primaryArtist?.Name ?? string.Empty;
 
-            // Get artist Spotify URL
-            Uri artistUrl = null;
-            if (primaryArtist?.ExternalUrls?.ContainsKey("spotify") == true)
-            {
-                Uri.TryCreate(primaryArtist.ExternalUrls["spotify"], UriKind.Absolute, out artistUrl);
-            }
+        //    // Get artist Spotify URL
+        //    Uri artistUrl = null;
+        //    if (primaryArtist?.ExternalUrls?.ContainsKey("spotify") == true)
+        //    {
+        //        Uri.TryCreate(primaryArtist.ExternalUrls["spotify"], UriKind.Absolute, out artistUrl);
+        //    }
 
-            // Get track Spotify URL
-            Uri trackUrl = null;
-            if (t.ExternalUrls?.ContainsKey("spotify") == true)
-            {
-                Uri.TryCreate(t.ExternalUrls["spotify"], UriKind.Absolute, out trackUrl);
-            }
+        //    // Get track Spotify URL
+        //    Uri trackUrl = null;
+        //    if (t.ExternalUrls?.ContainsKey("spotify") == true)
+        //    {
+        //        Uri.TryCreate(t.ExternalUrls["spotify"], UriKind.Absolute, out trackUrl);
+        //    }
 
-            // Get album image (try to get the medium size first, fall back to any available image)
-            Uri albumImageUrl = null;
-            if (t.Album?.Images?.Count > 0)
-            {
-                // Try to get medium (300px) image first, or the first available if not found
-                var image = t.Album.Images.FirstOrDefault(i => i.Height == 300 || i.Width == 300)
-                           ?? t.Album.Images.FirstOrDefault();
+        //    // Get album image (try to get the medium size first, fall back to any available image)
+        //    Uri albumImageUrl = null;
+        //    if (t.Album?.Images?.Count > 0)
+        //    {
+        //        // Try to get medium (300px) image first, or the first available if not found
+        //        var image = t.Album.Images.FirstOrDefault(i => i.Height == 300 || i.Width == 300)
+        //                   ?? t.Album.Images.FirstOrDefault();
 
-                if (image?.Url != null)
-                {
-                    Uri.TryCreate(image.Url, UriKind.Absolute, out albumImageUrl);
-                }
-            }
+        //        if (image?.Url != null)
+        //        {
+        //            Uri.TryCreate(image.Url, UriKind.Absolute, out albumImageUrl);
+        //        }
+        //    }
+        //    var albumName = t.Album?.Name ?? string.Empty;
 
-            return new Song(
-                t.Name ?? "Unknown Track",
-                artistName,
-                artistUrl,
-                trackUrl,
-                albumImageUrl  // Assuming your Song class has this property
-            );
-        }).Where(song => song != null);
+        //    return new Song(
+        //        t.Name ?? "Unknown Track",
+        //        artistName,
+        //        artistUrl,
+        //        trackUrl,
+        //        albumImageUrl,
+        //        albumName
+        //    );
+        //}).Where(song => song != null);
 
-        return Ok(songs);
+        //return Ok(songs);
+        return Ok();
     }
 }

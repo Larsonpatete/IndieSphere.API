@@ -1,4 +1,6 @@
 ﻿using System.Data;
+using IndieSphere.Infrastructure.NLP;
+using IndieSphere.Infrastructure.Search;
 using IndieSphere.Infrastructure.Users;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<IDbConnection>(container => container.GetRequiredService<SqlConnection>())
             .AddScoped(_ => new SqlConnection(connectionString))
             .AddTransient<IGetUsers, GetUsers>()
+            .AddTransient<INlpService, NlpService>()
+            .AddTransient<ISearchService, SearchService>()
             ;
 
         //var reposWithKeys = typeof(IRepository<,>);

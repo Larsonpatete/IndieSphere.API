@@ -1,4 +1,4 @@
-﻿using IndieSphere.Domain.Spotify;
+﻿using IndieSphere.Domain.Music;
 using IndieSphere.Web.Infrastructure.ApiClient;
 
 namespace IndieSphere.Web.Infrastructure.SpotifyClient;

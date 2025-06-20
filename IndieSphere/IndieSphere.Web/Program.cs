@@ -16,7 +16,7 @@ builder.AddServiceDefaults();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddControllers(); 
+builder.Services.AddControllers(); // remove
 
 builder.Services.AddOutputCache();
 
@@ -54,8 +54,7 @@ app.UseOutputCache();
 app.MapStaticAssets();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAntiforgery();
-app.MapControllers();
+app.MapControllers(); // remove
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode(); 
