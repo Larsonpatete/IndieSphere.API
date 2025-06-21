@@ -7,14 +7,20 @@ namespace IndieSphere.ApiService.Controllers;
 public class SongController(IMediator mediator) : ApiControllerBase
 {
     private readonly IMediator _mediator = mediator;
-    [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string query, [FromQuery] int limit = 10)
+    [HttpPost("search")]
+    public async Task<IActionResult> Search([FromBody] SearchRequest request)
     {
-        var result = await _mediator.Send(new SearchSongsQuery(query, limit));
+        var result = await _mediator.Send(new SearchSongsQuery(request.Query, request.limit));
         //var nlpResult = await _nlpService.AnalyzeTextAsync(query);
         // Limit the number of songs returned
         //var limitedSongs = songs.Take(limit).ToList();
         return Ok(result);
+    }
+
+    public class SearchRequest
+    {
+        public string Query { get; set; }
+        public int limit { get; set; } = 10;
     }
 
     [HttpGet("artist")]
