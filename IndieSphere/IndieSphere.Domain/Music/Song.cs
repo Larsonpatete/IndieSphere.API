@@ -10,4 +10,10 @@ public class Song
     public string TrackUrl { get; set; }
     public List<Genre> Genres { get; set; } = new();
     public bool IsExplicit { get; set; }
+    public int DurationMs { get; set; } 
+    public DateTime? ReleaseDate { get; set; }
+    public string ReleaseDatePrecision { get; set; }
+    public int Popularity { get; set; }
+    public string PreviewUrl { get; set; }
+
 }

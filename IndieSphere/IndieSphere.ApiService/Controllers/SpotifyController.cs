@@ -1,5 +1,4 @@
-﻿using IndieSphere.Domain.Music;
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SpotifyAPI.Web;

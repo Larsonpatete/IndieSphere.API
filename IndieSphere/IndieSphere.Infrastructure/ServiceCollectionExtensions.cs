@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using IndieSphere.Infrastructure.NLP;
 using IndieSphere.Infrastructure.Search;
+using IndieSphere.Infrastructure.Spotify;
 using IndieSphere.Infrastructure.Users;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public static class ServiceCollectionExtensions
             .AddTransient<IGetUsers, GetUsers>()
             .AddTransient<INlpService, NlpService>()
             .AddTransient<ISearchService, SearchService>()
+            .AddTransient<ISpotifyService, SpotifyService>()
             ;
 
         //var reposWithKeys = typeof(IRepository<,>);
