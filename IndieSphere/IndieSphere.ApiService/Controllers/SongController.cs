@@ -35,9 +35,10 @@ public class SongController(IMediator mediator) : ApiControllerBase
         return Ok();
     }
 
-    [HttpGet("song")]
-    public async Task<IActionResult> GetSong([FromQuery] string title, [FromQuery] string artist)
+    [HttpGet("{Id}")]
+    public async Task<IActionResult> GetSongDetails(string Id)
     {
-        return Ok();
+        var result = await _mediator.Send(new GetSongDetailsQuery(Id));
+        return Ok(result);
     }
 }

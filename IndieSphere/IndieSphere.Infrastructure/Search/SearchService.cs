@@ -273,3 +273,5 @@ public sealed record SearchResult<T>(List<T> Results, int TotalCount)
     public List<T> Results { get; init; } = Results;
     public int TotalCount { get; init; } = TotalCount;
 }
+
+public sealed record SongResult(Song song);

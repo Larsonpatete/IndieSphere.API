@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using IndieSphere.Infrastructure.LastFm;
 using IndieSphere.Infrastructure.NLP;
 using IndieSphere.Infrastructure.Search;
 using IndieSphere.Infrastructure.Spotify;
@@ -21,6 +22,7 @@ public static class ServiceCollectionExtensions
             .AddTransient<INlpService, NlpService>()
             .AddTransient<ISearchService, SearchService>()
             .AddTransient<ISpotifyService, SpotifyService>()
+            .AddTransient<ILastFmService, LastFmService>()
             ;
 
         //var reposWithKeys = typeof(IRepository<,>);

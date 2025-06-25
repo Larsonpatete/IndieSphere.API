@@ -1,14 +1,15 @@
 ﻿using IndieSphere.Domain.Music;
-using IndieSphere.Infrastructure.Search;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using SpotifyAPI.Web;
-using System.Collections.Generic;
+using System.Text;
 using static IndieSphere.Infrastructure.Spotify.SpotifyService;
 
 namespace IndieSphere.Infrastructure.Spotify;
 public interface ISpotifyService
 {
     Task<SpotifySearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0);
+    Task<Song> GetSongDetailsAsync(string id);
 }
 
 public class SpotifyService(IConfiguration config) : ISpotifyService
@@ -60,6 +61,104 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             Results = songs
         };
     }
+    public async Task<Song> GetSongDetailsAsync(string id)
+    {
+        //var token = await GetClientCredentialsToken();
+        //var spotify = new SpotifyClient(token);
+        var token = await GetClientCredentialsToken();
+
+        // Create client without 'using'
+        var spotify = new SpotifyClient(token);
+
+        // Get track info
+        var track = await spotify.Tracks.Get(id);
+        if (track == null)
+        {
+            return null;
+        }
+
+        //try
+        //{
+        //    var audioFeatures = await spotify.Tracks.GetAudioFeatures(id);
+        //}
+        //catch (APIException ex)
+        //{
+        //    // Capture detailed error information
+        //    var errorDetails = new StringBuilder();
+        //    errorDetails.AppendLine($"Spotify API Exception: {ex.Message}");
+        //    errorDetails.AppendLine($"Status Code: {ex.Response?.StatusCode}");
+
+        //    if (ex.Response?.Headers != null)
+        //    {
+        //        errorDetails.AppendLine("Headers:");
+        //        foreach (var header in ex.Response.Headers)
+        //        {
+        //            errorDetails.AppendLine($"{header.Key}: {string.Join(",", header.Value)}");
+        //        }
+        //    }
+
+        //    errorDetails.AppendLine($"Response Body: {ex.Response?.Body}");
+
+        //    // Store for debugging
+        //    var errorInfo = errorDetails.ToString();
+        //    Console.WriteLine(errorInfo);
+
+        //    // Optional: Throw a more informative exception
+        //    throw new Exception($"Audio features error for track {id}\n{errorInfo}", ex);
+        //}
+        var album = await spotify.Albums.Get(track.Album.Id);
+
+        // Create the song with the basic mapping
+        var song = new Song
+        {
+            Id = track.Id,
+            Title = track.Name,
+            Artist = new Artist
+            {
+                Id = track.Artists[0].Id,
+                Name = track.Artists[0].Name,
+                // You could get more artist details with another call if needed
+            },
+            Album = track.Album.Name,
+            AlbumImageUrl = track.Album.Images.FirstOrDefault()?.Url,
+            TrackUrl = track.ExternalUrls.ContainsKey("spotify") ? track.ExternalUrls["spotify"] : null,
+            DurationMs = track.DurationMs,
+            IsExplicit = track.Explicit,
+            Popularity = track.Popularity,
+            PreviewUrl = track.PreviewUrl,
+
+            // Date handling
+            ReleaseDate = ParseSpotifyDate(track.Album.ReleaseDate, track.Album.ReleaseDatePrecision),
+            ReleaseDatePrecision = track.Album.ReleaseDatePrecision,
+
+            // Audio features from the audio features endpoint
+            //Energy = audioFeatures?.Energy ?? 0,
+            //Danceability = audioFeatures?.Danceability ?? 0,
+            //Acousticness = audioFeatures?.Acousticness ?? 0,
+            //Instrumentalness = audioFeatures?.Instrumentalness ?? 0,
+            //Liveness = audioFeatures?.Liveness ?? 0,
+            //Tempo = audioFeatures?.Tempo ?? 0,
+            //Key = audioFeatures?.Key ?? -1,
+
+            //// Derived data
+            //ObscurityRating = CalculateObscurityRating(track.Popularity),
+            //MoodCategory = DetermineMood(
+            //    audioFeatures?.Energy ?? 0,
+            //    audioFeatures?.Valence ?? 0,
+            //    audioFeatures?.Tempo ?? 0)
+        };
+
+        //Add genres from the album
+        if (album != null && album.Genres?.Count > 0)
+        {
+            song.Genres = album.Genres.Select(g => new Genre { Name = g }).ToList();
+        }
+
+        //You could potentially make additional API calls here for Last.fm or MusicBrainz data
+        // if you want to include that in this method
+
+        return song;
+    }
     private Song MapSpotifyTrackToSong(FullTrack track)
     {
         var album = track.Album;
@@ -103,6 +202,53 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         };
     }
 
+    // Helper method to parse Spotify dates which can come in different formats
+    private DateTime? ParseSpotifyDate(string date, string precision)
+    {
+        if (string.IsNullOrEmpty(date))
+            return null;
+
+        try
+        {
+            switch (precision)
+            {
+                case "day":
+                    return DateTime.Parse(date);
+                case "month":
+                    return DateTime.Parse($"{date}-01");
+                case "year":
+                    return DateTime.Parse($"{date}-01-01");
+                default:
+                    return null;
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Calculate obscurity as inverse of popularity
+    private double CalculateObscurityRating(int popularity)
+    {
+        // Higher number = more obscure
+        return 100 - popularity;
+    }
+
+    // Determine mood based on audio features
+    private string DetermineMood(double energy, double valence, double tempo)
+    {
+        // Simple mood categorization logic
+        if (valence > 0.7 && energy > 0.7) return "Happy";
+        if (valence < 0.3 && energy < 0.4) return "Melancholy";
+        if (energy > 0.8 && tempo > 120) return "Energetic";
+        if (valence > 0.6 && energy < 0.4) return "Peaceful";
+        if (valence < 0.4 && energy > 0.6) return "Angry";
+        if (valence > 0.6 && tempo < 100) return "Relaxed";
+
+        // Default mood if none of the specific categories match
+        return "Balanced";
+    }
     // SearchResult class definition
     public class SpotifySearchResult<T>
     {
