@@ -66,6 +66,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         //var token = await GetClientCredentialsToken();
         //var spotify = new SpotifyClient(token);
         var token = await GetClientCredentialsToken();
+        Console.WriteLine("Access Token: " + token);
 
         // Create client without 'using'
         var spotify = new SpotifyClient(token);
@@ -108,6 +109,36 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         //}
         var album = await spotify.Albums.Get(track.Album.Id);
 
+        //TrackAudioFeatures audioFeatures = null;
+        //try
+        //{
+        //    audioFeatures = await spotify.Tracks.GetAudioFeatures(id);
+        //}
+        //catch (APIException ex)
+        //{
+        //    var builder = new StringBuilder();
+        //    builder.AppendLine($"⚠️ Spotify API error:");
+        //    builder.AppendLine($"  - Message: {ex.Message}");
+        //    builder.AppendLine($"  - Status Code: {(int)ex.Response.StatusCode} {ex.Response.StatusCode}");
+
+        //    if (ex.Response.Headers != null)
+        //    {
+        //        builder.AppendLine("  - Headers:");
+        //        foreach (var header in ex.Response.Headers)
+        //        {
+        //            builder.AppendLine($"    {header.Key}: {string.Join(", ", header.Value)}");
+        //        }
+        //    }
+
+        //    builder.AppendLine($"  - Body: {ex.Response.Body}");
+
+        //    Console.WriteLine(builder.ToString());
+
+        //    // Optional: rethrow with more detail if needed
+        //    throw new Exception($"Spotify API failed getting audio features for {id}", ex);
+        //}
+
+
         // Create the song with the basic mapping
         var song = new Song
         {
@@ -140,8 +171,8 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             //Tempo = audioFeatures?.Tempo ?? 0,
             //Key = audioFeatures?.Key ?? -1,
 
-            //// Derived data
-            //ObscurityRating = CalculateObscurityRating(track.Popularity),
+            // Derived data
+            ObscurityRating = CalculateObscurityRating(track.Popularity),
             //MoodCategory = DetermineMood(
             //    audioFeatures?.Energy ?? 0,
             //    audioFeatures?.Valence ?? 0,

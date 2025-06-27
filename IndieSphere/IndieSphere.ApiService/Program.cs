@@ -46,16 +46,57 @@ builder.Services.AddAuthentication(options =>
 {
     options.ClientId = builder.Configuration["Spotify:ClientId"];
     options.ClientSecret = builder.Configuration["Spotify:ClientSecret"];
-    options.CallbackPath = new PathString("/api/callback");
+    options.CallbackPath = new PathString("/api/spotify/callback");
 
     // Spotify OAuth endpoints
     options.AuthorizationEndpoint = "https://accounts.spotify.com/authorize";
     options.TokenEndpoint = "https://accounts.spotify.com/api/token";
     options.UserInformationEndpoint = "https://api.spotify.com/v1/me";
+    
+    // Set the full redirect URI
+    var redirectUri = builder.Configuration["Spotify:RedirectUri"];
+    if (!string.IsNullOrEmpty(redirectUri))
+    {
+        options.Events = new OAuthEvents
+        {
+            OnRedirectToAuthorizationEndpoint = context =>
+            {
+                // Build the authorization URL manually with all required parameters
+                var parameters = new Dictionary<string, string>
+                {
+                    ["client_id"] = options.ClientId,
+                    ["response_type"] = "code",
+                    ["redirect_uri"] = redirectUri,
+                    ["scope"] = string.Join(" ", options.Scope),
+                    ["state"] = context.Properties.Items[".xsrf"]
+                };
+                
+                // Add any additional parameters from original request
+                foreach (var item in context.Properties.Items)
+                {
+                    if (item.Key.StartsWith("oauth.") && 
+                        !parameters.ContainsKey(item.Key.Substring("oauth.".Length)))
+                    {
+                        parameters[item.Key.Substring("oauth.".Length)] = item.Value;
+                    }
+                }
+                
+                // Build the query string
+                var queryString = string.Join("&", parameters.Select(kvp => 
+                    $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}"));
+                
+                // Redirect to the authorization endpoint with our custom URL
+                context.Response.Redirect($"{options.AuthorizationEndpoint}?{queryString}");
+                return Task.CompletedTask;
+            }
+        };
+    }
 
     // Add scopes
     options.Scope.Add("user-top-read");
     options.Scope.Add("user-read-recently-played");
+    options.Scope.Add("user-read-private");
+    options.Scope.Add("user-read-email");
 
     // Save tokens
     options.SaveTokens = true;
@@ -64,6 +105,7 @@ builder.Services.AddAuthentication(options =>
     options.ClaimActions.MapJsonKey("sub", "id");
     options.ClaimActions.MapJsonKey("urn:spotify:name", "display_name");
 });
+
 
 builder.Services.AddAuthorization();
 

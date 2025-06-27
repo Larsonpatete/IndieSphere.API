@@ -15,23 +15,26 @@ public class SpotifyController(IConfiguration config) : ApiControllerBase
     {
         return Challenge(new AuthenticationProperties
         {
-            RedirectUri = returnUrl
+            RedirectUri = Url.Action("UserInfo")
         }, "Spotify");
     }
 
-    //Handle Spotify callback
-    //[HttpGet("callback")]
-    //[Authorize] // Ensures only authenticated users can hit this
-    //public async Task<IActionResult> Callback()
-    //{
-    //    // Extract tokens from the auth process
-    //    var accessToken = await HttpContext.GetTokenAsync("access_token");
-    //    var refreshToken = await HttpContext.GetTokenAsync("refresh_token");
+    [HttpGet("callback")]
+    public async Task<IActionResult> Callback()
+    {
+        Console.WriteLine("do you ever hit");
+        // Authentication is handled by middleware, just redirect to success
+        return RedirectToAction("GetToken");
+    }
 
-    //    // You could store these tokens if needed
-    //    // Then redirect back to your frontend with the token
-    //    return Redirect($"http://localhost:7233?access_token={accessToken}");
-    //}
+    // Get access token
+    [Authorize]
+    [HttpGet("token")]
+    public IActionResult GetToken()
+    {
+        var accessToken = HttpContext.GetTokenAsync("access_token").Result;
+        return Content($"Access Token: {accessToken}");
+    }
 
     [HttpGet("logout")]
     public async Task<IActionResult> Logout()

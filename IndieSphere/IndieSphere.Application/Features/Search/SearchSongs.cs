@@ -29,11 +29,11 @@ public class SearchSongsHandler : IRequestHandler<SearchSongsQuery, SpotifySearc
 
         //var result = await _nlpService.AnalyzeQueryAsync(request.Query);
         // var result = await _searchService.SearchSongsAsync(request.Query, request.limit);
-        var result = await _spotifyService.SearchSongsAsync(request.Query, request.limit);
+        var result = await _spotifyService.SearchSongsAsync(request.Query, request.limit, request.offset);
 
         return result;    
     }
 
 }
 
-public sealed record SearchSongsQuery(string Query, int limit) : IQuery<SpotifySearchResult<Song>>; // MusicQuery
+public sealed record SearchSongsQuery(string Query, int limit, int offset) : IQuery<SpotifySearchResult<Song>>; // MusicQuery

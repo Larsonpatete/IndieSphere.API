@@ -4,12 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IndieSphere.ApiService.Controllers;
 
-public class SongController(IMediator mediator) : ApiControllerBase
+public class SearchController(IMediator mediator) : ApiControllerBase
 {
     private readonly IMediator _mediator = mediator;
-    [HttpGet("search")]  // Changed to GET
-    public async Task<IActionResult> Search([FromQuery] string query, [FromQuery] int limit = 20) {
-        var result = await _mediator.Send(new SearchSongsQuery(query,  limit));
+    [HttpGet("songs")]  // Changed to GET
+    public async Task<IActionResult> Search([FromQuery] string query, [FromQuery] int limit = 20, [FromQuery] int offset = 0) {
+        var result = await _mediator.Send(new SearchSongsQuery(query,  limit, offset));
         //var nlpResult = await _nlpService.AnalyzeTextAsync(query);
         // Limit the number of songs returned
         //var limitedSongs = songs.Take(limit).ToList();
