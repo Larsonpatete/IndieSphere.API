@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using IndieSphere.Domain.LastFm;
+using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using static IndieSphere.Infrastructure.LastFm.LastFmService;
@@ -7,6 +8,7 @@ namespace IndieSphere.Infrastructure.LastFm;
 public interface ILastFmService
 {
     Task<LastFmTrackInfo> GetTrackInfo(string artist, string track);
+    Task<IEnumerable<SimilarTrack>> GetSimilarSongs(string track, string artist, int limit = 20);
 }
 public class LastFmService : ILastFmService
 {
@@ -46,6 +48,30 @@ public class LastFmService : ILastFmService
         });
     }
 
+    public async Task<IEnumerable<SimilarTrack>> GetSimilarSongs(string track, string artist, int limit = 20)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["method"] = "track.getSimilar",
+            ["api_key"] = _apiKey,
+            ["track"] = track,
+            ["artist"] = artist,
+            ["limit"] = limit.ToString(),
+            ["format"] = "json"
+        };
+        var queryString = BuildQueryString(parameters);
+        var response = await _httpClient.GetAsync($"?{queryString}");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<SimilarTracksResponse>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        return result?.SimilarTracks?.Tracks ?? Enumerable.Empty<SimilarTrack>();
+    }
+
     private string BuildQueryString(Dictionary<string, string> parameters)
     {
         var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
@@ -57,102 +83,5 @@ public class LastFmService : ILastFmService
     }
 
     // Response DTOs with JsonPropertyName attributes
-    public class LastFmTrackInfo
-    {
-        [JsonPropertyName("track")]
-        public LastFmTrack Track { get; set; }
-    }
-
-    public class LastFmTrack
-    {
-        [JsonPropertyName("name")]
-        public string Name { get; set; }
-
-        [JsonPropertyName("url")]
-        public string Url { get; set; }
-
-        [JsonPropertyName("artist")]
-        public LastFmArtist Artist { get; set; }
-
-        [JsonPropertyName("album")]
-        public LastFmAlbum Album { get; set; }
-
-        [JsonPropertyName("playcount")]
-        public string PlaycountString { get; set; }
-
-        [JsonPropertyName("listeners")]
-        public string ListenersString { get; set; }
-
-        [JsonIgnore]
-        public long Playcount => long.TryParse(PlaycountString, out var result) ? result : 0;
-
-        [JsonIgnore]
-        public long Listeners => long.TryParse(ListenersString, out var result) ? result : 0;
-
-        [JsonPropertyName("wiki")]
-        public LastFmWiki Wiki { get; set; }
-
-        [JsonPropertyName("toptags")]
-        public LastFmTopTags TopTags { get; set; }
-    }
-
-    public class LastFmArtist
-    {
-        [JsonPropertyName("name")]
-        public string Name { get; set; }
-
-        [JsonPropertyName("mbid")]
-        public string MusicBrainzId { get; set; }
-
-        [JsonPropertyName("url")]
-        public string Url { get; set; }
-    }
-
-    public class LastFmAlbum
-    {
-        [JsonPropertyName("artist")]
-        public string Artist { get; set; }
-
-        [JsonPropertyName("title")]
-        public string Title { get; set; }
-
-        [JsonPropertyName("url")]
-        public string Url { get; set; }
-
-        [JsonPropertyName("image")]
-        public List<LastFmImage> Images { get; set; }
-    }
-
-    public class LastFmImage
-    {
-        [JsonPropertyName("#text")]
-        public string Url { get; set; }
-
-        [JsonPropertyName("size")]
-        public string Size { get; set; }
-    }
-
-    public class LastFmWiki
-    {
-        [JsonPropertyName("summary")]
-        public string Summary { get; set; }
-
-        [JsonPropertyName("content")]
-        public string Content { get; set; }
-    }
-
-    public class LastFmTopTags
-    {
-        [JsonPropertyName("tag")]
-        public List<LastFmTag> Tags { get; set; }
-    }
-
-    public class LastFmTag
-    {
-        [JsonPropertyName("name")]
-        public string Name { get; set; }
-
-        [JsonPropertyName("url")]
-        public string Url { get; set; }
-    }
+  
 }

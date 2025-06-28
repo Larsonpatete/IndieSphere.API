@@ -1,4 +1,6 @@
-﻿namespace IndieSphere.Domain.Music;
+﻿using IndieSphere.Domain.LastFm;
+
+namespace IndieSphere.Domain.Music;
 
 public class Song
 {
@@ -19,8 +21,8 @@ public class Song
     // Additional properties for indie music discovery
 
     // Last.fm data
-    public long PlayCount { get; set; }           // Number of plays on Last.fm
-    public long ListenerCount { get; set; }       // Unique listeners on Last.fm
+    public long? PlayCount { get; set; }           // Number of plays on Last.fm
+    public long? ListenerCount { get; set; }       // Unique listeners on Last.fm
     public List<Tag> UserTags { get; set; } = new();  // User-generated tags (beyond formal genres)
     public string Description { get; set; }      // Wiki-style description from Last.fm
 
@@ -57,6 +59,52 @@ public class Song
     public bool IsDIY { get; set; }              // Self-produced/published
     public bool HasLiveVersions { get; set; }    // Live recordings available
     public int UndergroundBuzzScore { get; set; } // Measure of discussion in indie communities
+
+
+    public static Song MapLastFmTrackToSong(SimilarTrack track)
+    {
+        return new Song
+        {
+            Title = track.Name,
+            TrackUrl = track.Url,
+            Artist = track.Artist != null ? new Artist
+            {
+                Name = track.Artist.Name,
+                Url = track.Artist.Url,
+                Id = track.Artist.MusicBrainzId
+            } : null,
+            AlbumImageUrl = track.Images?.FirstOrDefault(i => i.Size == "large")?.Url
+                     ?? track.Images?.FirstOrDefault()?.Url,
+            Id = track.MusicBrainzId
+        };
+    }
+
+    public void EnrichWithLastFm(LastFmTrack lastFmTrack)
+    {
+        if (lastFmTrack == null) return;
+
+        PlayCount = lastFmTrack.Playcount;
+        ListenerCount = lastFmTrack.Listeners;
+        Description = lastFmTrack.Wiki?.Content;
+
+        // Add user tags as UserTags
+        if (lastFmTrack.TopTags?.Tags != null && lastFmTrack.TopTags.Tags.Any())
+        {
+            UserTags = lastFmTrack.TopTags.Tags
+                .Select(t => new Tag { Name = t.Name })
+                .ToList();
+
+            // Optionally, add tags as genres if not already present
+            if (Genres == null)
+                Genres = new List<Genre>();
+
+            foreach (var tag in lastFmTrack.TopTags.Tags)
+            {
+                if (!Genres.Any(g => g.Name.Equals(tag.Name, StringComparison.OrdinalIgnoreCase)))
+                    Genres.Add(new Genre { Name = tag.Name });
+            }
+        }
+    }
 }
 
 // New supporting classes

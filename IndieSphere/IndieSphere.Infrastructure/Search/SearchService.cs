@@ -6,11 +6,6 @@ namespace IndieSphere.Infrastructure.Search;
 
 public interface ISearchService
 {
-    Task<SearchResult<Song>> SearchSongsAsync(string query, int limit);
-    Task<SearchResult<Artist>> SearchArtistsAsync(string name);
-    Task<SearchResult<Song>> SearchByGenreAsync(string genre);
-    Task<Song> GetSongAsync(string title, string artist);
-    Task<Artist> GetArtistAsync(string name);
 }
 public class SearchService : ISearchService
 {
@@ -156,122 +151,6 @@ public class SearchService : ISearchService
     //    await Task.WhenAll(tasks);
     //    return results;
     //}
-    public async Task<SearchResult<Song>> SearchSongsAsync(string query, int limit)
-    {
-        var url = $"https://musicbrainz.org/ws/2/recording/?query={Uri.EscapeDataString(query)}&limit={limit}&fmt=json";
-        var response = await _httpClient.GetAsync(url);
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync();
-        var doc = JsonDocument.Parse(json);
-
-        var songs = new List<Song>();
-        int totalCount = 0;
-
-        if (doc.RootElement.TryGetProperty("count", out var countProp))
-        {
-            totalCount = countProp.GetInt32();
-        }
-
-        if (doc.RootElement.TryGetProperty("recordings", out var recordings))
-        {
-            foreach (var rec in recordings.EnumerateArray())
-            {
-                var title = rec.GetProperty("title").GetString();
-                var id = rec.GetProperty("id").GetString();
-                // Artist mapping with null checks
-                Artist? songArtist = null;
-                if (rec.TryGetProperty("artist-credit", out var artistCredits) && artistCredits.GetArrayLength() > 0)
-                {
-                    var firstArtist = artistCredits[0];
-                    string artistId = firstArtist.GetProperty("artist")
-                        .GetProperty("id").GetString()!;
-
-                    songArtist = new Artist
-                    {
-                        Id = artistId,
-                        Name = firstArtist.GetProperty("name").GetString() ?? "Unknown Artist",
-                        Url = $"https://musicbrainz.org/artist/{artistId}"
-                    };
-                }
-
-
-                // Album mapping
-                string? album = null;
-                string? albumImageUrl = null;
-                if (rec.TryGetProperty("releases", out var releases) && releases.GetArrayLength() > 0)
-                {
-                    var firstRelease = releases[0];
-                    album = firstRelease.GetProperty("release-group")
-                        .GetProperty("title").GetString();
-
-                    string releaseId = firstRelease.GetProperty("id").GetString()!;
-                    albumImageUrl = await GetAlbumCoverUrl(releaseId);
-                }
-
-                var song = new Song
-                {
-                    Id = id,
-                    Title = title,
-                    Artist = songArtist ?? new Artist { Name = "Unknown Artist" },
-                    Album = album,
-                    AlbumImageUrl = albumImageUrl,
-                    TrackUrl = $"https://musicbrainz.org/recording/{id}",
-                    Genres = new List<Genre>(), // MusicBrainz doesn't provide genres at recording level
-                    IsExplicit = false // Not provided by MusicBrainz API
-                };
-
-                songs.Add(song);
-            }
-        }
-
-        return new SearchResult<Song>(songs, totalCount)
-        {
-            TotalCount = totalCount,
-            Results = songs
-        };
-    }
-
-    public async Task<string> GetAlbumCoverUrl(string releaseId) // handles not found URLs
-    {
-        var url = $"https://coverartarchive.org/release/{releaseId}/front-250.jpg";
-
-        using var client = new HttpClient();
-        try
-        {
-            var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Head, url));
-            return response.IsSuccessStatusCode ? url : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-    public Task<SearchResult<Artist>> SearchArtistsAsync(string name)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<SearchResult<Song>> SearchByGenreAsync(string genre)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task<Artist> GetArtistAsync(string name)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<Song> GetSongAsync(string title, string artist)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-public sealed record SearchResult<T>(List<T> Results, int TotalCount)
-{
-    public List<T> Results { get; init; } = Results;
-    public int TotalCount { get; init; } = TotalCount;
 }
 
 public sealed record SongResult(Song song);

@@ -46,7 +46,7 @@ public class SpotifyController(IConfiguration config) : ApiControllerBase
     [HttpGet("me")]
     public IActionResult GetCurrentUser()
     {
-        if (!User.Identity.IsAuthenticated)
+        if (User.Identity?.IsAuthenticated != true) // Check for null and authentication
             return Unauthorized();
 
         return Ok(new

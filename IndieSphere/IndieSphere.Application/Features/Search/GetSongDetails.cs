@@ -27,40 +27,7 @@ public class GetSongDetailsHandler(ISearchService searchService, ISpotifyService
             // Enrich song with Last.fm data if available
             if (lastFmTrack?.Track != null)
             {
-                // Add play count and listener count
-                song.PlayCount = lastFmTrack.Track.Playcount;
-                song.ListenerCount = lastFmTrack.Track.Listeners;
-
-                // Add Last.fm description/wiki content if available
-                if (lastFmTrack.Track.Wiki != null)
-                {
-                    song.Description = lastFmTrack.Track.Wiki.Content;
-                }
-
-                // Add user tags if available
-                if (lastFmTrack.Track.TopTags?.Tags != null && lastFmTrack.Track.TopTags.Tags.Any())
-                {
-                    // Either create new Tag objects
-                    var userTags = lastFmTrack.Track.TopTags.Tags
-                        .Select(t => new Tag { Name = t.Name })
-                        .ToList();
-
-                    // Add them to existing genres if song.UserTags property exists
-                    // or add to genres if that's where you store tags
-                    if (song.Genres == null)
-                    {
-                        song.Genres = new List<Genre>();
-                    }
-
-                    // Add Last.fm tags as genres if they don't already exist
-                    foreach (var tag in lastFmTrack.Track.TopTags.Tags)
-                    {
-                        if (!song.Genres.Any(g => g.Name.Equals(tag.Name, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            song.Genres.Add(new Genre { Name = tag.Name });
-                        }
-                    }
-                }
+                song.EnrichWithLastFm(lastFmTrack.Track);
             }
         }
         catch (Exception ex)

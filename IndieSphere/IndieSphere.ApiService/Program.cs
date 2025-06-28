@@ -44,8 +44,9 @@ builder.Services.AddAuthentication(options =>
 .AddCookie()
 .AddOAuth("Spotify", options =>
 {
-    options.ClientId = builder.Configuration["Spotify:ClientId"];
-    options.ClientSecret = builder.Configuration["Spotify:ClientSecret"];
+    // Update the assignment to handle potential null values using null-coalescing operator or throw an exception if null.
+    options.ClientId = builder.Configuration["Spotify:ClientId"] ?? throw new InvalidOperationException("Spotify:ClientId is not configured.");
+    options.ClientSecret = builder.Configuration["Spotify:ClientSecret"] ?? throw new InvalidOperationException("Spotify:ClientSecret is not configured.");
     options.CallbackPath = new PathString("/api/spotify/callback");
 
     // Spotify OAuth endpoints

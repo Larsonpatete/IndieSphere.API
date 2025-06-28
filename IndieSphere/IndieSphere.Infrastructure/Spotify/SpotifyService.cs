@@ -1,4 +1,5 @@
 ﻿using IndieSphere.Domain.Music;
+using IndieSphere.Domain.Search;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using SpotifyAPI.Web;
@@ -8,7 +9,7 @@ using static IndieSphere.Infrastructure.Spotify.SpotifyService;
 namespace IndieSphere.Infrastructure.Spotify;
 public interface ISpotifyService
 {
-    Task<SpotifySearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0);
+    Task<SearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0);
     Task<Song> GetSongDetailsAsync(string id);
 }
 
@@ -24,7 +25,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         var response = await new OAuthClient(config).RequestToken(request);
         return response.AccessToken;
     }
-    public async Task<SpotifySearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0)
+    public async Task<SearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0)
     {
         var token = await GetClientCredentialsToken();
         var spotify = new SpotifyClient(token);
@@ -39,7 +40,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
 
         if (results?.Tracks?.Items == null)
         {
-            return new SpotifySearchResult<Song>
+            return new SearchResult<Song>
             {
                 TotalCount = 0,
                 Offset = offset,
@@ -53,7 +54,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             .Select(t => MapSpotifyTrackToSong(t))
             .ToList();
 
-        return new SpotifySearchResult<Song>
+        return new SearchResult<Song>
         {
             TotalCount = results.Tracks.Total,
             Offset = offset,
@@ -281,11 +282,4 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         return "Balanced";
     }
     // SearchResult class definition
-    public class SpotifySearchResult<T>
-    {
-        public int? TotalCount { get; set; }       // Total items available
-        public int Offset { get; set; }           // Current starting index
-        public int Limit { get; set; }            // Max items per page
-        public List<T> Results { get; set; }      // Current page results
-    }
 }

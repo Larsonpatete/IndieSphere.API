@@ -7,12 +7,9 @@ namespace IndieSphere.ApiService.Controllers;
 public class SearchController(IMediator mediator) : ApiControllerBase
 {
     private readonly IMediator _mediator = mediator;
-    [HttpGet("songs")]  // Changed to GET
-    public async Task<IActionResult> Search([FromQuery] string query, [FromQuery] int limit = 20, [FromQuery] int offset = 0) {
+    [HttpGet("songs")] 
+    public async Task<IActionResult> Search([FromQuery] string query, [FromQuery] int limit = 20, [FromQuery] int offset = 0) { // TODO: reconsider NER
         var result = await _mediator.Send(new SearchSongsQuery(query,  limit, offset));
-        //var nlpResult = await _nlpService.AnalyzeTextAsync(query);
-        // Limit the number of songs returned
-        //var limitedSongs = songs.Take(limit).ToList();
         return Ok(result);
     }
 
@@ -36,9 +33,16 @@ public class SearchController(IMediator mediator) : ApiControllerBase
     }
 
     [HttpGet("{Id}")]
-    public async Task<IActionResult> GetSongDetails(string Id)
+    public async Task<IActionResult> GetSongDetails(string Id) // TODO: handle MbId
     {
         var result = await _mediator.Send(new GetSongDetailsQuery(Id));
+        return Ok(result);
+    }
+
+    [HttpGet("similar-songs")]
+    public async Task<IActionResult> GetSimilarSongs([FromQuery] string query, [FromQuery] int limit = 20)
+    {
+        var result = await _mediator.Send(new GetSimilarSongQuery(query, limit));
         return Ok(result);
     }
 }
