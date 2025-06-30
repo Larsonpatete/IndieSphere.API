@@ -20,4 +20,19 @@ public class SongQueryParser
         }
         return null;
     }
+
+    public static (string Title, string Artist)? ParseFallbackId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || !id.Contains("--"))
+            return null;
+
+        var parts = id.Split(["--"], StringSplitOptions.None);
+        if (parts.Length != 2)
+            return null;
+
+        // Replace dashes with spaces to get the original title/artist
+        var title = parts[0].Replace("-", " ");
+        var artist = parts[1].Replace("-", " ");
+        return (title, artist);
+    }
 }

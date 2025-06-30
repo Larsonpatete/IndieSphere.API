@@ -1,4 +1,5 @@
-﻿using IndieSphere.Domain.Music;
+﻿using IndieSphere.Domain.Helper;
+using IndieSphere.Domain.Music;
 using IndieSphere.Domain.Search;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
@@ -11,6 +12,7 @@ public interface ISpotifyService
 {
     Task<SearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0);
     Task<Song> GetSongDetailsAsync(string id);
+    Task PopulateAlbumCoversAsync(List<Song> songs);
 }
 
 public class SpotifyService(IConfiguration config) : ISpotifyService
@@ -64,8 +66,8 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
     }
     public async Task<Song> GetSongDetailsAsync(string id)
     {
-        //var token = await GetClientCredentialsToken();
-        //var spotify = new SpotifyClient(token);
+
+
         var token = await GetClientCredentialsToken();
         Console.WriteLine("Access Token: " + token);
 
@@ -73,11 +75,37 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         var spotify = new SpotifyClient(token);
 
         // Get track info
-        var track = await spotify.Tracks.Get(id);
-        if (track == null)
+
+        if (id.Contains("--"))
         {
-            return null;
+            var parsed = SongQueryParser.ParseFallbackId(id);
+            if (parsed == null)
+                return null;
+
+            var (title, artist) = parsed.Value;
+            var query = $"track:\"{title}\" artist:\"{artist}\"";
+
+            var searchRequest = new SearchRequest(SearchRequest.Types.Track, query)
+            {
+                Limit = 1,
+                Offset = 0
+            };
+
+            var results = await spotify.Search.Item(searchRequest);
+            var track = results?.Tracks?.Items?.FirstOrDefault();
+            if (track == null)
+                return null;
+
+            // Use your mapping method for consistency
+            return MapSpotifyTrackToSong(track);
         }
+
+        // Standard Spotify ID lookup
+        var fullTrack = await spotify.Tracks.Get(id);
+        if (fullTrack == null)
+            return null;
+
+        return MapSpotifyTrackToSong(fullTrack);
 
         //try
         //{
@@ -108,7 +136,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         //    // Optional: Throw a more informative exception
         //    throw new Exception($"Audio features error for track {id}\n{errorInfo}", ex);
         //}
-        var album = await spotify.Albums.Get(track.Album.Id);
+        //var album = await spotify.Albums.Get(track.Album.Id);
 
         //TrackAudioFeatures audioFeatures = null;
         //try
@@ -141,55 +169,55 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
 
 
         // Create the song with the basic mapping
-        var song = new Song
-        {
-            Id = track.Id,
-            Title = track.Name,
-            Artist = new Artist
-            {
-                Id = track.Artists[0].Id,
-                Name = track.Artists[0].Name,
-                // You could get more artist details with another call if needed
-            },
-            Album = track.Album.Name,
-            AlbumImageUrl = track.Album.Images.FirstOrDefault()?.Url,
-            TrackUrl = track.ExternalUrls.ContainsKey("spotify") ? track.ExternalUrls["spotify"] : null,
-            DurationMs = track.DurationMs,
-            IsExplicit = track.Explicit,
-            Popularity = track.Popularity,
-            PreviewUrl = track.PreviewUrl,
+        //var song = new Song
+        //{
+        //    Id = track.Id,
+        //    Title = track.Name,
+        //    Artist = new Artist
+        //    {
+        //        Id = track.Artists[0].Id,
+        //        Name = track.Artists[0].Name,
+        //        // You could get more artist details with another call if needed
+        //    },
+        //    Album = track.Album.Name,
+        //    AlbumImageUrl = track.Album.Images.FirstOrDefault()?.Url,
+        //    TrackUrl = track.ExternalUrls.ContainsKey("spotify") ? track.ExternalUrls["spotify"] : null,
+        //    DurationMs = track.DurationMs,
+        //    IsExplicit = track.Explicit,
+        //    Popularity = track.Popularity,
+        //    PreviewUrl = track.PreviewUrl,
 
-            // Date handling
-            ReleaseDate = ParseSpotifyDate(track.Album.ReleaseDate, track.Album.ReleaseDatePrecision),
-            ReleaseDatePrecision = track.Album.ReleaseDatePrecision,
+        //    // Date handling
+        //    ReleaseDate = ParseSpotifyDate(track.Album.ReleaseDate, track.Album.ReleaseDatePrecision),
+        //    ReleaseDatePrecision = track.Album.ReleaseDatePrecision,
 
-            // Audio features from the audio features endpoint
-            //Energy = audioFeatures?.Energy ?? 0,
-            //Danceability = audioFeatures?.Danceability ?? 0,
-            //Acousticness = audioFeatures?.Acousticness ?? 0,
-            //Instrumentalness = audioFeatures?.Instrumentalness ?? 0,
-            //Liveness = audioFeatures?.Liveness ?? 0,
-            //Tempo = audioFeatures?.Tempo ?? 0,
-            //Key = audioFeatures?.Key ?? -1,
+        //    // Audio features from the audio features endpoint
+        //    //Energy = audioFeatures?.Energy ?? 0,
+        //    //Danceability = audioFeatures?.Danceability ?? 0,
+        //    //Acousticness = audioFeatures?.Acousticness ?? 0,
+        //    //Instrumentalness = audioFeatures?.Instrumentalness ?? 0,
+        //    //Liveness = audioFeatures?.Liveness ?? 0,
+        //    //Tempo = audioFeatures?.Tempo ?? 0,
+        //    //Key = audioFeatures?.Key ?? -1,
 
-            // Derived data
-            ObscurityRating = CalculateObscurityRating(track.Popularity),
-            //MoodCategory = DetermineMood(
-            //    audioFeatures?.Energy ?? 0,
-            //    audioFeatures?.Valence ?? 0,
-            //    audioFeatures?.Tempo ?? 0)
-        };
+        //    // Derived data
+        //    ObscurityRating = CalculateObscurityRating(track.Popularity),
+        //    //MoodCategory = DetermineMood(
+        //    //    audioFeatures?.Energy ?? 0,
+        //    //    audioFeatures?.Valence ?? 0,
+        //    //    audioFeatures?.Tempo ?? 0)
+        //};
 
         //Add genres from the album
-        if (album != null && album.Genres?.Count > 0)
-        {
-            song.Genres = album.Genres.Select(g => new Genre { Name = g }).ToList();
-        }
+        //if (album != null && album.Genres?.Count > 0)
+        //{
+        //    song.Genres = album.Genres.Select(g => new Genre { Name = g }).ToList();
+        //}
 
         //You could potentially make additional API calls here for Last.fm or MusicBrainz data
         // if you want to include that in this method
 
-        return song;
+        //return song;
     }
     private Song MapSpotifyTrackToSong(FullTrack track)
     {
@@ -232,6 +260,40 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             Popularity = track.Popularity,
             PreviewUrl = track.PreviewUrl
         };
+    }
+
+    public async Task PopulateAlbumCoversAsync(List<Song> songs)
+    {
+        var token = await GetClientCredentialsToken();
+        var spotify = new SpotifyClient(token);
+
+        foreach (var song in songs)
+        {
+            // Only update if AlbumImageUrl is missing or default
+            if (string.IsNullOrEmpty(song.AlbumImageUrl) || song.AlbumImageUrl.Contains("2a96cbd8b46e442fc41c2b86b821562f")) // id for no image from Last.Fm
+            {
+                // Use title and artist for search
+                var title = song.Title;
+                var artist = song.Artist?.Name;
+
+                if (!string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(artist))
+                {
+                    var query = $"track:\"{title}\" artist:\"{artist}\"";
+                    var searchRequest = new SearchRequest(SearchRequest.Types.Track, query)
+                    {
+                        Limit = 1
+                    };
+                    var results = await spotify.Search.Item(searchRequest);
+                    var track = results?.Tracks?.Items?.FirstOrDefault();
+                    var imageUrl = track?.Album?.Images?.OrderByDescending(i => i.Height).FirstOrDefault()?.Url;
+
+                    if (!string.IsNullOrEmpty(imageUrl))
+                    {
+                        song.AlbumImageUrl = imageUrl;
+                    }
+                }
+            }
+        }
     }
 
     // Helper method to parse Spotify dates which can come in different formats

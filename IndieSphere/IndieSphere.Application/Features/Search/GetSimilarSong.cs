@@ -2,21 +2,35 @@
 using IndieSphere.Domain.Music;
 using IndieSphere.Domain.Search;
 using IndieSphere.Infrastructure.LastFm;
+using IndieSphere.Infrastructure.Spotify;
 using MediatR;
 
 namespace IndieSphere.Application.Features.Search;
 
-public class GetSimilarSongHandler(ILastFmService lastFm) : IRequestHandler<GetSimilarSongQuery, SearchResult<Song>>
+public class GetSimilarSongHandler(ILastFmService lastFm, ISpotifyService spotify) : IRequestHandler<GetSimilarSongQuery, SearchResult<Song>>
 {
-    private readonly ILastFmService _lastFmService = lastFm;  
+    private readonly ILastFmService _lastFmService = lastFm;
+    private readonly ISpotifyService _spotifyService = spotify;
     public async Task<SearchResult<Song>> Handle(GetSimilarSongQuery request, CancellationToken cancellationToken)
     {
         var parsed = SongQueryParser.Parse(request.Query);
         if (parsed == null)
             throw new ArgumentException("Query must be in the format '[song] by [artist]'.");
 
-        var result = await _lastFmService.GetSimilarSongs(parsed.Value.Song, parsed.Value.Artist, request.limit);
-        return new SearchResult<Song> { Results = result.Select(Song.MapLastFmTrackToSong).ToList(), Limit = request.limit, TotalCount = result.Count() };
+        var similarTracks = await _lastFmService.GetSimilarSongs(parsed.Value.Song, parsed.Value.Artist, request.limit);
+
+        // Map to Song objects
+        var songs = similarTracks.Select(Song.MapLastFmTrackToSong).ToList();
+
+        // Populate album covers using Spotify
+        await _spotifyService.PopulateAlbumCoversAsync(songs);
+
+        return new SearchResult<Song>
+        {
+            Results = songs,
+            Limit = request.limit,
+            TotalCount = songs.Count
+        };
     }
 }
 

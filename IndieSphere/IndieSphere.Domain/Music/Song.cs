@@ -25,6 +25,7 @@ public class Song
     public long? ListenerCount { get; set; }       // Unique listeners on Last.fm
     public List<Tag> UserTags { get; set; } = new();  // User-generated tags (beyond formal genres)
     public string Description { get; set; }      // Wiki-style description from Last.fm
+    public double? SimilarSongMatch { get; set; } // 0.0-1.0 score for match similarity
 
     // Underground appeal metrics
     public double ObscurityRating { get; set; }  // Inverse of popularity, helpful for finding hidden gems
@@ -63,6 +64,11 @@ public class Song
 
     public static Song MapLastFmTrackToSong(SimilarTrack track)
     {
+        // Use lowercased, trimmed, and replace spaces with dashes for uniqueness
+        var title = track.Name?.Trim().ToLowerInvariant().Replace(" ", "-") ?? "";
+        var artist = track.Artist?.Name?.Trim().ToLowerInvariant().Replace(" ", "-") ?? "";
+        var fallbackId = $"{title}--{artist}";
+
         return new Song
         {
             Title = track.Name,
@@ -74,8 +80,9 @@ public class Song
                 Id = track.Artist.MusicBrainzId
             } : null,
             AlbumImageUrl = track.Images?.FirstOrDefault(i => i.Size == "large")?.Url
-                     ?? track.Images?.FirstOrDefault()?.Url,
-            Id = track.MusicBrainzId
+                         ?? track.Images?.FirstOrDefault()?.Url,
+            Id = fallbackId,
+            SimilarSongMatch = track.Match
         };
     }
 

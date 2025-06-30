@@ -57,6 +57,7 @@ public class LastFmService : ILastFmService
             ["track"] = track,
             ["artist"] = artist,
             ["limit"] = limit.ToString(),
+            ["autocorrect"] = "1",
             ["format"] = "json"
         };
         var queryString = BuildQueryString(parameters);

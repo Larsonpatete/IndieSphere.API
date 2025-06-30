@@ -1,3 +1,4 @@
+using Azure.Identity;
 using IndieSphere.Application;
 using IndieSphere.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
@@ -120,6 +121,17 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+
+if (!builder.Environment.IsDevelopment())
+{
+    var keyVaultUrl = builder.Configuration["KeyVault:Url"]; // TODO: add KeyVault URL to configuration
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUrl ?? "https://indiesphere-kv.vault.azure.net/"),
+        new DefaultAzureCredential());
+}
+
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
