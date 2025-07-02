@@ -1,4 +1,5 @@
 ﻿using IndieSphere.Domain.LastFm;
+using IndieSphere.Domain.Search;
 
 namespace IndieSphere.Domain.Music;
 
@@ -127,4 +128,35 @@ public class Review
     public string Content { get; set; }
     public double? Rating { get; set; }
     public DateTime Date { get; set; }
+}
+
+public static class SongExtensions
+{
+    public static IEnumerable<Song> ApplyFilters(this IEnumerable<Song> songs, SearchFilters filters)
+    {
+        if (filters == null) return songs;
+
+        if (filters.MinPopularity.HasValue)
+            songs = songs.Where(song => song.Popularity >= filters.MinPopularity.Value);
+
+        if (filters.MaxPopularity.HasValue)
+            songs = songs.Where(song => song.Popularity <= filters.MaxPopularity.Value);
+
+        if (!string.IsNullOrEmpty(filters.Genre))
+            songs = songs.Where(song => song.Genres.Any(genre => genre.Name.Equals(filters.Genre, StringComparison.OrdinalIgnoreCase)));
+
+        if (filters.MinYear.HasValue)
+            songs = songs.Where(song => song.ReleaseDate.HasValue && song.ReleaseDate.Value.Year >= filters.MinYear.Value);
+
+        if (filters.MaxYear.HasValue)
+            songs = songs.Where(song => song.ReleaseDate.HasValue && song.ReleaseDate.Value.Year <= filters.MaxYear.Value);
+
+        if (filters.MinTempo.HasValue)
+            songs = songs.Where(song => song.Tempo >= filters.MinTempo.Value);
+
+        if (filters.MaxTempo.HasValue)
+            songs = songs.Where(song => song.Tempo <= filters.MaxTempo.Value);
+
+        return songs;
+    }
 }

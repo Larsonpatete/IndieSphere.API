@@ -23,8 +23,6 @@ public class SearchSongsHandler : IRequestHandler<SearchSongsQuery, SearchResult
     public async Task<SearchResult<Song>> Handle(SearchSongsQuery request, CancellationToken cancellationToken)
     {
         var result = await _spotifyService.SearchSongsAsync(request.Query, request.limit, request.offset);
-
-        // Explicitly cast or map the result to the correct type if necessary
         return result;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using IndieSphere.Application.Features.Search;
+using IndieSphere.Domain.Search;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,16 +8,15 @@ namespace IndieSphere.ApiService.Controllers;
 public class SearchController(IMediator mediator) : ApiControllerBase
 {
     private readonly IMediator _mediator = mediator;
-    [HttpGet("songs")] 
-    public async Task<IActionResult> Search([FromQuery] string query, [FromQuery] int limit = 20, [FromQuery] int offset = 0) { // TODO: reconsider NER
+    [HttpGet("songs")]
+    public async Task<IActionResult> Search( // TODO: reconsider NER
+    [FromQuery] string query,
+    [FromQuery] int limit = 20,
+    [FromQuery] int offset = 0
+    )
+    {
         var result = await _mediator.Send(new SearchSongsQuery(query,  limit, offset));
         return Ok(result);
-    }
-
-    public class SearchRequest
-    {
-        public string Query { get; set; }
-        public int limit { get; set; } = 10;
     }
 
     [HttpGet("artist")]
@@ -40,9 +40,22 @@ public class SearchController(IMediator mediator) : ApiControllerBase
     }
 
     [HttpGet("similar-songs")]
-    public async Task<IActionResult> GetSimilarSongs([FromQuery] string query, [FromQuery] int limit = 20)
+    public async Task<IActionResult> GetSimilarSongs(
+        [FromQuery] string query,
+        [FromQuery] int limit = 20,
+        [FromQuery] int offset = 0,
+        [FromQuery] int? minPopularity = null,
+        [FromQuery] int? maxPopularity = null)
     {
-        var result = await _mediator.Send(new GetSimilarSongQuery(query, limit));
+        // Create filter object
+        var filters = new SearchFilters
+        {
+            MinPopularity = minPopularity,
+            MaxPopularity = maxPopularity
+            // Add more filters as they're implemented
+        };
+
+        var result = await _mediator.Send(new GetSimilarSongQuery(query, limit, filters));
         return Ok(result);
     }
 }

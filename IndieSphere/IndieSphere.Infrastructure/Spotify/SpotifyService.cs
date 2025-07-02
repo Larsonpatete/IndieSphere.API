@@ -2,17 +2,14 @@
 using IndieSphere.Domain.Music;
 using IndieSphere.Domain.Search;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
 using SpotifyAPI.Web;
-using System.Text;
-using static IndieSphere.Infrastructure.Spotify.SpotifyService;
 
 namespace IndieSphere.Infrastructure.Spotify;
 public interface ISpotifyService
 {
     Task<SearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0);
     Task<Song> GetSongDetailsAsync(string id);
-    Task PopulateAlbumCoversAsync(List<Song> songs);
+    Task EnrichWithSpotify(List<Song> songs);
 }
 
 public class SpotifyService(IConfiguration config) : ISpotifyService
@@ -262,7 +259,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         };
     }
 
-    public async Task PopulateAlbumCoversAsync(List<Song> songs)
+    public async Task EnrichWithSpotify(List<Song> songs)
     {
         var token = await GetClientCredentialsToken();
         var spotify = new SpotifyClient(token);
@@ -286,10 +283,14 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
                     var results = await spotify.Search.Item(searchRequest);
                     var track = results?.Tracks?.Items?.FirstOrDefault();
                     var imageUrl = track?.Album?.Images?.OrderByDescending(i => i.Height).FirstOrDefault()?.Url;
+                    var durationMs = track?.DurationMs;
+                    var popularity = track?.Popularity;
 
                     if (!string.IsNullOrEmpty(imageUrl))
                     {
                         song.AlbumImageUrl = imageUrl;
+                        song.DurationMs = durationMs ?? song.DurationMs;
+                        song.Popularity = popularity ?? song.Popularity;
                     }
                 }
             }

@@ -23,7 +23,9 @@ public class GetSimilarSongHandler(ILastFmService lastFm, ISpotifyService spotif
         var songs = similarTracks.Select(Song.MapLastFmTrackToSong).ToList();
 
         // Populate album covers using Spotify
-        await _spotifyService.PopulateAlbumCoversAsync(songs);
+        await _spotifyService.EnrichWithSpotify(songs);
+
+        songs = songs.ApplyFilters(request.Filters).ToList();
 
         return new SearchResult<Song>
         {
@@ -34,5 +36,5 @@ public class GetSimilarSongHandler(ILastFmService lastFm, ISpotifyService spotif
     }
 }
 
-public sealed record GetSimilarSongQuery(string Query, int limit) : IQuery<SearchResult<Song>>; // MusicQuery
+public sealed record GetSimilarSongQuery(string Query, int limit, SearchFilters Filters) : IQuery<SearchResult<Song>>; // MusicQuery
 
