@@ -10,6 +10,8 @@ public interface ISpotifyService
     Task<SearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0);
     Task<Song> GetSongDetailsAsync(string id);
     Task EnrichWithSpotify(List<Song> songs);
+    Task<SearchResult<Artist>> SearchArtistsAsync(string query, int limit = 20, int offset = 0);
+    Task<Artist> GetArtistDetailsAsync(string Id);
 }
 
 public class SpotifyService(IConfiguration config) : ISpotifyService
@@ -297,6 +299,73 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         }
     }
 
+    public async Task<SearchResult<Artist>> SearchArtistsAsync(string query, int limit = 20, int offset = 0)
+    {
+        var token = await GetClientCredentialsToken();
+        var spotify = new SpotifyClient(token);
+        var searchRequest = new SearchRequest(SearchRequest.Types.Artist, query)
+        {
+            Limit = limit,
+            Offset = offset
+        };
+        var results = await spotify.Search.Item(searchRequest);
+        if (results?.Artists?.Items == null)
+        {
+            return new SearchResult<Artist>
+            {
+                TotalCount = 0,
+                Offset = offset,
+                Limit = limit,
+                Results = new List<Artist>()
+            };
+        }
+        var artists = results.Artists.Items
+            .Where(a => a != null)
+            .Select(a => new Artist
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Url = a.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
+                Genres = a.Genres.Select(g => new Genre { Name = g }).ToList(),
+                Images = a.Images
+                    .Where(i => i.Height >= 300) // Filter for larger images
+                    .Select(i => i.Url)
+                    .ToList(),
+                Followers = a.Followers.Total,
+                Popularity = a.Popularity
+
+            })
+            .ToList();
+        return new SearchResult<Artist>
+        {
+            TotalCount = results.Artists.Total,
+            Offset = offset,
+            Limit = limit,
+            Results = artists
+        };
+    }
+
+    public async Task<Artist> GetArtistDetailsAsync(string id)
+    {
+        var token = await GetClientCredentialsToken();
+        var spotify = new SpotifyClient(token);
+        var artist = await spotify.Artists.Get(id);
+        if (artist == null)
+            return null;
+        return new Artist
+        {
+            Id = artist.Id,
+            Name = artist.Name,
+            Url = artist.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
+            Genres = artist.Genres.Select(g => new Genre { Name = g }).ToList(),
+            Images = artist.Images
+                .Where(i => i.Height >= 300) // Filter for larger images
+                .Select(i => i.Url)
+                .ToList(),
+            Followers = artist.Followers.Total,
+            Popularity = artist.Popularity
+        };
+    }
     // Helper method to parse Spotify dates which can come in different formats
     private DateTime? ParseSpotifyDate(string date, string precision)
     {

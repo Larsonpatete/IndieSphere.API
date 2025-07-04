@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IndieSphere.ApiService.Controllers;
 
-public class SearchController(IMediator mediator) : ApiControllerBase
+public class SongsController(IMediator mediator) : ApiControllerBase
 {
     private readonly IMediator _mediator = mediator;
-    [HttpGet("songs")]
-    public async Task<IActionResult> Search( // TODO: reconsider NER
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchSongs( // TODO: reconsider NER
     [FromQuery] string query,
     [FromQuery] int limit = 20,
     [FromQuery] int offset = 0
@@ -18,13 +18,6 @@ public class SearchController(IMediator mediator) : ApiControllerBase
         var result = await _mediator.Send(new SearchSongsQuery(query,  limit, offset));
         return Ok(result);
     }
-
-    [HttpGet("artist")]
-    public async Task<IActionResult> GetArtist([FromQuery] string name)
-    {
-        return Ok();
-    }
-
 
     [HttpGet("genre")]
     public async Task<IActionResult> GetByGenre([FromQuery] string genre)
