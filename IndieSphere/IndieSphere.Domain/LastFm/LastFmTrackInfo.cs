@@ -136,3 +136,43 @@ public class SimilarTrack
     [JsonPropertyName("image")]
     public List<LastFmImage> Images { get; set; }
 }
+
+// DTOs for deserialization
+public class SimilarArtistsResponse
+{
+    [JsonPropertyName("similarartists")]
+    public SimilarArtistsContainer SimilarArtists { get; set; }
+}
+
+public class SimilarArtistsContainer
+{
+    [JsonPropertyName("artist")]
+    public List<SimilarArtist> Artists { get; set; }
+}
+
+public class SimilarArtist
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+
+    [JsonPropertyName("mbid")]
+    public string MusicBrainzId { get; set; }
+
+    [JsonPropertyName("match")]
+    public string Match { get; set; }
+
+    [JsonPropertyName("url")]
+    public string Url { get; set; }
+
+    [JsonPropertyName("image")]
+    public List<LastFmArtistImage> Images { get; set; }
+}
+
+public class LastFmArtistImage
+{
+    [JsonPropertyName("#text")]
+    public string Url { get; set; }
+
+    [JsonPropertyName("size")]
+    public string Size { get; set; }
+}

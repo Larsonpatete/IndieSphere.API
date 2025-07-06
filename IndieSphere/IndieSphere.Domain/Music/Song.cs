@@ -78,7 +78,7 @@ public class Song
             {
                 Name = track.Artist.Name,
                 Url = track.Artist.Url,
-                Id = track.Artist.MusicBrainzId
+                Id = (track.Artist.Name.Replace(' ', '-') + "-"),
             } : null,
             AlbumImageUrl = track.Images?.FirstOrDefault(i => i.Size == "large")?.Url
                          ?? track.Images?.FirstOrDefault()?.Url,

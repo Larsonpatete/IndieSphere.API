@@ -1,4 +1,5 @@
 ﻿using IndieSphere.Application.Features.Search;
+using IndieSphere.Domain.Search;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,24 @@ public class ArtistsController(IMediator mediator) : ApiControllerBase
     public async Task<IActionResult> GetArtistDetails(string Id)
     {
         var result = await _mediator.Send(new GetArtistDetailsQuery(Id));
+        return Ok(result);
+    }
+
+    [HttpGet("similar")]
+    public async Task<IActionResult> GetSimilarArtist(
+        [FromQuery] string query,
+        [FromQuery] int limit = 20,
+        [FromQuery] int? minPopularity = null,
+        [FromQuery] int? maxPopularity = null)
+    {
+        // Create filter object
+        var filters = new SearchFilters
+        {
+            MinPopularity = minPopularity,
+            MaxPopularity = maxPopularity
+            // Add more filters as they're implemented
+        };
+        var result = await _mediator.Send(new GetSimilarArtistQuery(query, limit, filters));
         return Ok(result);
     }
 }

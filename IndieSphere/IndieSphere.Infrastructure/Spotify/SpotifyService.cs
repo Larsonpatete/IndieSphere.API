@@ -12,6 +12,7 @@ public interface ISpotifyService
     Task EnrichWithSpotify(List<Song> songs);
     Task<SearchResult<Artist>> SearchArtistsAsync(string query, int limit = 20, int offset = 0);
     Task<Artist> GetArtistDetailsAsync(string Id);
+    Task EnrichArtistWithSpotify(List<Artist> artists);
 }
 
 public class SpotifyService(IConfiguration config) : ISpotifyService
@@ -218,48 +219,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
 
         //return song;
     }
-    private Song MapSpotifyTrackToSong(FullTrack track)
-    {
-        var album = track.Album;
-        var primaryArtist = track.Artists?.FirstOrDefault();
 
-        // Parse release date
-        DateTime? releaseDate = null;
-        if (!string.IsNullOrEmpty(album?.ReleaseDate) &&
-            DateTime.TryParse(album.ReleaseDate, out var parsedDate))
-        {
-            releaseDate = parsedDate;
-        }
-
-        // Get best available image
-        var image = album?.Images
-            ?.OrderByDescending(i => i.Height)
-            .FirstOrDefault(i => i.Height >= 300)
-            ?? album?.Images?.FirstOrDefault();
-
-        return new Song
-        {
-            Id = track.Id,
-            Title = track.Name ?? "Unknown Track",
-            Artist = new Artist
-            {
-                Id = primaryArtist?.Id ?? "",
-                Name = primaryArtist?.Name ?? "Unknown Artist",
-                Url = primaryArtist?.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
-                Genres = new List<Genre>()
-            },
-            Album = album?.Name ?? "",
-            AlbumImageUrl = image?.Url,
-            TrackUrl = track.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
-            Genres = new List<Genre>(),
-            IsExplicit = track.Explicit,
-            DurationMs = track.DurationMs,
-            ReleaseDate = releaseDate,
-            ReleaseDatePrecision = album?.ReleaseDatePrecision,
-            Popularity = track.Popularity,
-            PreviewUrl = track.PreviewUrl
-        };
-    }
 
     public async Task EnrichWithSpotify(List<Song> songs)
     {
@@ -349,9 +309,111 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
     {
         var token = await GetClientCredentialsToken();
         var spotify = new SpotifyClient(token);
-        var artist = await spotify.Artists.Get(id);
-        if (artist == null)
-            return null;
+        
+        if (id.Contains("-"))
+        {
+            var parsedQuery = id.Replace("-", " ");
+            var query = $"artist:\"{parsedQuery}\"";
+
+            var searchRequest = new SearchRequest(SearchRequest.Types.Artist, query)
+            {
+                Limit = 1,
+                Offset = 0
+            };
+
+            var results = await spotify.Search.Item(searchRequest);
+            var artist = results?.Artists?.Items?.FirstOrDefault();
+            if (artist == null)
+                return null;
+
+            // Use your mapping method for consistency
+            return MapSpotifyArtistToArtist(artist);
+           
+        }
+        var result = await spotify.Artists.Get(id);
+        return MapSpotifyArtistToArtist(result);
+    }
+
+
+    public async Task EnrichArtistWithSpotify(List<Artist> artists)
+    {
+        var token = await GetClientCredentialsToken();
+        var spotify = new SpotifyClient(token);
+
+        foreach (var artist in artists)
+        {
+            // Only update if AlbumImageUrl is missing or default
+            if (artist.Images.Count < 1 || artist.Images.Any(s => s.Contains("2a96cbd8b46e442fc41c2b86b821562f"))) // id for no image from Last.Fm
+            {
+                // Use title and artist for search
+                var name = artist.Name;
+               if (!string.IsNullOrWhiteSpace(name))
+                {
+                    var query = $"artist:\"{artist.Name}\"";
+                    var searchRequest = new SearchRequest(SearchRequest.Types.Artist, query)
+                    {
+                        Limit = 1
+                    };
+                    var results = await spotify.Search.Item(searchRequest);
+                    var newArtist = results?.Artists?.Items?.FirstOrDefault();
+                    var imageUrl = newArtist?.Images[0].Url;
+                    var popularity = newArtist?.Popularity;
+
+                    if (!string.IsNullOrEmpty(imageUrl))
+                    {
+                        artist.Images = new List<string> { imageUrl };
+                        artist.Popularity = popularity ?? 0;
+                    }
+                }
+            }
+        }
+    }
+
+    private Song MapSpotifyTrackToSong(FullTrack track)
+    {
+        var album = track.Album;
+        var primaryArtist = track.Artists?.FirstOrDefault();
+
+        // Parse release date
+        DateTime? releaseDate = null;
+        if (!string.IsNullOrEmpty(album?.ReleaseDate) &&
+            DateTime.TryParse(album.ReleaseDate, out var parsedDate))
+        {
+            releaseDate = parsedDate;
+        }
+
+        // Get best available image
+        var image = album?.Images
+            ?.OrderByDescending(i => i.Height)
+            .FirstOrDefault(i => i.Height >= 300)
+            ?? album?.Images?.FirstOrDefault();
+
+        return new Song
+        {
+            Id = track.Id,
+            Title = track.Name ?? "Unknown Track",
+            Artist = new Artist
+            {
+                Id = primaryArtist?.Id ?? "",
+                Name = primaryArtist?.Name ?? "Unknown Artist",
+                Url = primaryArtist?.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
+                Genres = new List<Genre>()
+            },
+            Album = album?.Name ?? "",
+            AlbumImageUrl = image?.Url,
+            TrackUrl = track.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
+            Genres = new List<Genre>(),
+            IsExplicit = track.Explicit,
+            DurationMs = track.DurationMs,
+            ReleaseDate = releaseDate,
+            ReleaseDatePrecision = album?.ReleaseDatePrecision,
+            Popularity = track.Popularity,
+            PreviewUrl = track.PreviewUrl
+        };
+    }
+
+    private Artist MapSpotifyArtistToArtist(FullArtist artist)
+    {
         return new Artist
         {
             Id = artist.Id,

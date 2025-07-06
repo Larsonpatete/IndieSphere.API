@@ -10,6 +10,7 @@ public interface ILastFmService
     Task<LastFmTrackInfo> GetTrackInfo(string artist, string track);
     Task<IEnumerable<SimilarTrack>> GetSimilarSongs(string track, string artist, int limit = 20);
     Task<LastFmArtist> GetArtistInfo(string artist);
+    Task<IEnumerable<SimilarArtist>> GetSimilarArtists(string artist, int limit = 20);
 }
 public class LastFmService : ILastFmService
 {
@@ -93,6 +94,27 @@ public class LastFmService : ILastFmService
         });
     }
 
+    public async Task<IEnumerable<SimilarArtist>> GetSimilarArtists(string artist, int limit = 20)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["method"] = "artist.getsimilar",
+            ["api_key"] = _apiKey,
+            ["artist"] = artist,
+            ["limit"] = limit.ToString(),
+            ["autocorrect"] = "1",
+            ["format"] = "json"
+        };
+        var queryString = BuildQueryString(parameters);
+        var response = await _httpClient.GetAsync($"?{queryString}");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<SimilarArtistsResponse>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        return result?.SimilarArtists?.Artists ?? Enumerable.Empty<SimilarArtist>();
+    }
     private string BuildQueryString(Dictionary<string, string> parameters)
     {
         var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
