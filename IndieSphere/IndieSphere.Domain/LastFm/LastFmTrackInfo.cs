@@ -39,9 +39,9 @@ public class LastFmTrack
 
     [JsonPropertyName("toptags")]
     public LastFmTopTags TopTags { get; set; }
+
     [JsonPropertyName("duration")]
     public string DurationString { get; set; }
-
 }
 
 public class LastFmArtist
@@ -175,4 +175,135 @@ public class LastFmArtistImage
 
     [JsonPropertyName("size")]
     public string Size { get; set; }
+}
+
+public class TopTracksResponse
+{
+    [JsonPropertyName("toptracks")]
+    public TopTracksContainer TopTracks { get; set; }
+
+    // This property can also be 'tracks' for other endpoints like chart.getTopTracks
+    [JsonPropertyName("tracks")]
+    public TopTracksContainer Tracks { get; set; }
+}
+
+public class TopTracksContainer
+{
+    [JsonPropertyName("track")]
+    public List<TopTrack> Tracks { get; set; }
+
+    [JsonPropertyName("@attr")]
+    public TopTracksAttributes Attributes { get; set; }
+}
+
+public class TopTracksAttributes
+{
+    [JsonPropertyName("country")]
+    public string Country { get; set; }
+}
+
+public class TopTrack
+{
+    [JsonPropertyName("@attr")]
+    public TrackAttributes Attributes { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+
+    [JsonPropertyName("playcount")]
+    public string Playcount { get; set; }
+    
+    [JsonPropertyName("listeners")]
+    public string Listeners { get; set; }
+
+    [JsonPropertyName("duration")]
+    public string Duration { get; set; }
+
+    [JsonPropertyName("mbid")]
+    public string MusicBrainzId { get; set; }
+
+    [JsonPropertyName("url")]
+    public string Url { get; set; }
+
+    [JsonPropertyName("streamable")]
+    public LastFmStreamable Streamable { get; set; }
+
+    [JsonPropertyName("artist")]
+    public LastFmArtist Artist { get; set; }
+
+    [JsonPropertyName("image")]
+    public List<LastFmImage> Images { get; set; }
+}
+
+public class TrackAttributes
+{
+    [JsonPropertyName("rank")]
+    public string Rank { get; set; }
+}
+
+public class LastFmStreamable
+{
+    [JsonPropertyName("#text")]
+    public string IsStreamable { get; set; }
+
+    [JsonPropertyName("fulltrack")]
+    public string IsFullTrack { get; set; }
+}
+
+
+
+
+// Response DTOs with JsonPropertyName attributes
+public class ArtistTopTracksResponse
+{
+    [JsonPropertyName("toptracks")]
+    public TopTracksList TopTracks { get; set; }
+}
+
+public class TopTracksList
+{
+    [JsonPropertyName("track")]
+    public List<LastFmTopTrack> Track { get; set; }
+}
+
+public class LastFmTopTrack
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+    [JsonPropertyName("playcount")]
+    public string Playcount { get; set; }
+    [JsonPropertyName("listeners")]
+    public string Listeners { get; set; }
+    [JsonPropertyName("url")]
+    public string Url { get; set; }
+    [JsonPropertyName("artist")]
+    public LastFmArtist Artist { get; set; }
+    [JsonPropertyName("image")]
+    public List<LastFmImage> Image { get; set; }
+}
+
+public class ArtistTopAlbumsResponse
+{
+    [JsonPropertyName("topalbums")]
+    public TopAlbumsList TopAlbums { get; set; }
+}
+
+public class TopAlbumsList
+{
+    [JsonPropertyName("album")]
+    public List<LastFmTopAlbum> Album { get; set; }
+}
+
+public class LastFmTopAlbum
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+    [JsonPropertyName("playcount")]
+    public int Playcount { get; set; }
+    [JsonPropertyName("url")]
+    public string Url { get; set; }
+    [JsonPropertyName("artist")]
+    public LastFmArtist Artist { get; set; }
+    [JsonPropertyName("image")]
+    public List<LastFmImage> Image { get; set; }
 }

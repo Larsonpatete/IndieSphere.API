@@ -51,4 +51,14 @@ public class SongsController(IMediator mediator) : ApiControllerBase
         var result = await _mediator.Send(new GetSimilarSongQuery(query, limit, filters));
         return Ok(result);
     }
+
+    [HttpGet("top-songs-by-country")]
+    public async Task<IActionResult> GetTopSongsByCountry(
+        [FromQuery] string country,
+        [FromQuery] int limit = 20,
+        [FromQuery] int offset = 0)
+    {
+        var result = await _mediator.Send(new GetTopSongsByCountryQuery(country, limit, offset));
+        return Ok(result);
+    }
 }

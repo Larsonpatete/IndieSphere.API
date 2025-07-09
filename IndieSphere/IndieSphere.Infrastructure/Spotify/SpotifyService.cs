@@ -1,6 +1,7 @@
 ﻿using IndieSphere.Domain.Helper;
 using IndieSphere.Domain.Music;
 using IndieSphere.Domain.Search;
+using IndieSphere.Infrastructure.ContentModeration;
 using Microsoft.Extensions.Configuration;
 using SpotifyAPI.Web;
 
@@ -13,11 +14,13 @@ public interface ISpotifyService
     Task<SearchResult<Artist>> SearchArtistsAsync(string query, int limit = 20, int offset = 0);
     Task<Artist> GetArtistDetailsAsync(string Id);
     Task EnrichArtistWithSpotify(List<Artist> artists);
+    Task<List<Song>> GetAlbumSongs(string albumId, int limit = 30, int offset = 0);
 }
 
-public class SpotifyService(IConfiguration config) : ISpotifyService
+public class SpotifyService(IConfiguration config, IContentModerationService contentModeration) : ISpotifyService
 {
     private readonly IConfiguration _config = config;
+    private readonly IContentModerationService _contentModerationService = contentModeration;
     private async Task<string> GetClientCredentialsToken()
     {
         var config = SpotifyClientConfig.CreateDefault();
@@ -51,17 +54,16 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             };
         }
 
-        var songs = results.Tracks.Items
+        var songs = await Task.WhenAll(results.Tracks.Items
             .Where(t => t != null)
-            .Select(t => MapSpotifyTrackToSong(t))
-            .ToList();
+            .Select(async t => await MapSpotifyTrackToSong(t)));
 
         return new SearchResult<Song>
         {
             TotalCount = results.Tracks.Total,
             Offset = offset,
             Limit = limit,
-            Results = songs
+            Results = songs.ToList()
         };
     }
     public async Task<Song> GetSongDetailsAsync(string id)
@@ -97,7 +99,7 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
                 return null;
 
             // Use your mapping method for consistency
-            return MapSpotifyTrackToSong(track);
+            return await MapSpotifyTrackToSong(track);
         }
 
         // Standard Spotify ID lookup
@@ -105,7 +107,8 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
         if (fullTrack == null)
             return null;
 
-        return MapSpotifyTrackToSong(fullTrack);
+
+        return await MapSpotifyTrackToSong(fullTrack);
 
         //try
         //{
@@ -250,9 +253,19 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
 
                     if (!string.IsNullOrEmpty(imageUrl))
                     {
-                        song.AlbumImageUrl = imageUrl;
-                        song.DurationMs = durationMs ?? song.DurationMs;
-                        song.Popularity = popularity ?? song.Popularity;
+                        //bool isExplicit = await _contentModerationService.IsImageExplicitAsync(imageUrl);
+                        bool isExplicit = false;
+                        if (!isExplicit)
+                        {
+                            song.AlbumImageUrl = imageUrl;
+                            song.DurationMs = durationMs ?? song.DurationMs;
+                            song.Popularity = popularity ?? song.Popularity;
+                        }
+                        else
+                        {
+                            // Log, leave blank, or use placeholder image
+                            song.AlbumImageUrl = "https://example.com/placeholder-safe.jpg";
+                        }
                     }
                 }
             }
@@ -368,8 +381,20 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             }
         }
     }
+    public async Task<List<Song>> GetAlbumSongs(string albumId, int limit = 30, int offset = 0)
+    {
+        var token = await GetClientCredentialsToken();
+        var spotify = new SpotifyClient(token);
+        var album = await spotify.Albums.Get(albumId);
+        if (album == null || album.Tracks?.Items == null)
+            return new List<Song>();
+        return album.Tracks.Items
+            .Where(t => t != null)
+            .Select(t => MapSpotifyTrackToSong(t))
+            .ToList();
+    }
 
-    private Song MapSpotifyTrackToSong(FullTrack track)
+    private async Task<Song> MapSpotifyTrackToSong(FullTrack track)
     {
         var album = track.Album;
         var primaryArtist = track.Artists?.FirstOrDefault();
@@ -388,6 +413,15 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             .FirstOrDefault(i => i.Height >= 300)
             ?? album?.Images?.FirstOrDefault();
 
+
+        // bool isExplicit = await _contentModerationService.IsImageExplicitAsync(image?.Url);
+
+        //if (isExplicit)
+        //{
+        //    // Log, leave blank, or use placeholder image
+        //    image = new Image { Url = "https://example.com/placeholder-safe.jpg" };
+        //}
+
         return new Song
         {
             Id = track.Id,
@@ -399,7 +433,11 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
                 Url = primaryArtist?.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
                 Genres = new List<Genre>()
             },
-            Album = album?.Name ?? "",
+            Album = new Album
+            {
+                Id = album?.Id ?? "",
+                Title = album?.Name ?? "Unknown Album",
+            }, 
             AlbumImageUrl = image?.Url,
             TrackUrl = track.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
             Genres = new List<Genre>(),
@@ -428,6 +466,34 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             Popularity = artist.Popularity
         };
     }
+    private Song MapSpotifyTrackToSong(SimpleTrack track)
+    {
+        var primaryArtist = track.Artists?.FirstOrDefault();
+
+        return new Song
+        {
+            Id = track.Id,
+            Title = track.Name ?? "Unknown Track",
+            Artist = new Artist
+            {
+                Id = primaryArtist?.Id ?? "",
+                Name = primaryArtist?.Name ?? "Unknown Artist",
+                Url = primaryArtist?.ExternalUrls?.GetValueOrDefault("spotify") ?? ""
+            },
+            // Album info is not available on SimpleTrack, so leave it empty
+            // You would need to make a separate API call to get album details if needed
+            Album = new Album(),
+            AlbumImageUrl = null,
+            TrackUrl = track.ExternalUrls?.GetValueOrDefault("spotify") ?? "",
+            IsExplicit = track.Explicit,
+            DurationMs = track.DurationMs,
+            PreviewUrl = track.PreviewUrl,
+            // Popularity and ReleaseDate are not on SimpleTrack
+            Popularity = 0,
+            ReleaseDate = null
+        };
+    }
+
     // Helper method to parse Spotify dates which can come in different formats
     private DateTime? ParseSpotifyDate(string date, string precision)
     {

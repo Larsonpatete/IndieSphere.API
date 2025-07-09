@@ -153,4 +153,4 @@ public class SearchService : ISearchService
     //}
 }
 
-public sealed record SongResult(Song song);
+//public sealed record SongResult(Song song);

@@ -8,7 +8,7 @@ public class Song
     public string Id { get; set; }                // Unique identifier (e.g., MBID)
     public string Title { get; set; }
     public Artist Artist { get; set; }
-    public string Album { get; set; }
+    public Album Album { get; set; }
     public string AlbumImageUrl { get; set; }
     public string TrackUrl { get; set; }
     public List<Genre> Genres { get; set; } = new();
@@ -84,6 +84,32 @@ public class Song
                          ?? track.Images?.FirstOrDefault()?.Url,
             Id = fallbackId,
             SimilarSongMatch = track.Match
+        };
+    }
+
+    public static Song MapLastFmTopTrackToSong(TopTrack track)
+    {
+        // Use lowercased, trimmed, and replace spaces with dashes for uniqueness
+        var title = track.Name?.Trim().ToLowerInvariant().Replace(" ", "-") ?? "";
+        var artist = track.Artist?.Name?.Trim().ToLowerInvariant().Replace(" ", "-") ?? "";
+        var fallbackId = $"{title}--{artist}";
+
+        long.TryParse(track.Playcount, out var playcount);
+
+        return new Song
+        {
+            Title = track.Name,
+            TrackUrl = track.Url,
+            Artist = track.Artist != null ? new Artist
+            {
+                Name = track.Artist.Name,
+                Url = track.Artist.Url,
+                Id = (track.Artist.Name.Replace(' ', '-') + "-"),
+            } : null,
+            AlbumImageUrl = track.Images?.FirstOrDefault(i => i.Size == "large")?.Url
+                         ?? track.Images?.FirstOrDefault()?.Url,
+            Id = fallbackId,
+            PlayCount = playcount
         };
     }
 

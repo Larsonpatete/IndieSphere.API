@@ -11,6 +11,9 @@ public interface ILastFmService
     Task<IEnumerable<SimilarTrack>> GetSimilarSongs(string track, string artist, int limit = 20);
     Task<LastFmArtist> GetArtistInfo(string artist);
     Task<IEnumerable<SimilarArtist>> GetSimilarArtists(string artist, int limit = 20);
+    Task<IEnumerable<TopTrack>> GetTopSongsByCountryAsync(string country, int limit = 20);
+    Task<IEnumerable<LastFmTopTrack>> GetArtistTopTracks(string artist, int limit = 10);
+    Task<IEnumerable<LastFmTopAlbum>> GetArtistTopAlbums(string artist, int limit = 10);
 }
 public class LastFmService : ILastFmService
 {
@@ -115,6 +118,70 @@ public class LastFmService : ILastFmService
         });
         return result?.SimilarArtists?.Artists ?? Enumerable.Empty<SimilarArtist>();
     }
+
+    public async Task<IEnumerable<TopTrack>> GetTopSongsByCountryAsync(string country, int limit = 20)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["method"] = "geo.gettoptracks",
+            ["api_key"] = _apiKey,
+            ["country"] = country,
+            ["limit"] = limit.ToString(),
+            ["format"] = "json"
+        };
+        var queryString = BuildQueryString(parameters);
+        var response = await _httpClient.GetAsync($"?{queryString}");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<TopTracksResponse>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        return result?.Tracks?.Tracks ?? Enumerable.Empty<TopTrack>();
+    }
+
+    public async Task<IEnumerable<LastFmTopTrack>> GetArtistTopTracks(string artist, int limit = 10)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["method"] = "artist.gettoptracks",
+            ["api_key"] = _apiKey,
+            ["artist"] = artist,
+            ["limit"] = limit.ToString(),
+            ["format"] = "json"
+        };
+        var queryString = BuildQueryString(parameters);
+        var response = await _httpClient.GetAsync($"?{queryString}");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ArtistTopTracksResponse>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        return result?.TopTracks?.Track ?? Enumerable.Empty<LastFmTopTrack>();
+    }
+
+    public async Task<IEnumerable<LastFmTopAlbum>> GetArtistTopAlbums(string artist, int limit = 10)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["method"] = "artist.gettopalbums",
+            ["api_key"] = _apiKey,
+            ["artist"] = artist,
+            ["limit"] = limit.ToString(),
+            ["format"] = "json"
+        };
+        var queryString = BuildQueryString(parameters);
+        var response = await _httpClient.GetAsync($"?{queryString}");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ArtistTopAlbumsResponse>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        return result?.TopAlbums?.Album ?? Enumerable.Empty<LastFmTopAlbum>();
+    }
+
     private string BuildQueryString(Dictionary<string, string> parameters)
     {
         var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
@@ -125,6 +192,5 @@ public class LastFmService : ILastFmService
         return query.ToString();
     }
 
-    // Response DTOs with JsonPropertyName attributes
-  
+
 }

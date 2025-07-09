@@ -35,6 +35,12 @@ public class GetSongDetailsHandler(ISearchService searchService, ISpotifyService
             // Log the error but continue - don't fail if Last.fm is unavailable
             Console.WriteLine($"Error getting Last.fm data: {ex.Message}");
         }
+        var lastFmSongs = await _lastFmService.GetSimilarSongs(song.Title, song.Artist.Name, 9); // 9 fits better in UI lol
+        var similarSongs = lastFmSongs.Select(Song.MapLastFmTrackToSong).ToList();
+        await _spotifyService.EnrichWithSpotify(similarSongs);
+        var albumSongs = await _spotifyService.GetAlbumSongs(song.Album.Id);
+        song.Album.Songs = albumSongs;
+        song.SimilarSongs = similarSongs;
 
         // Return the enriched song
         return new SongResult(song);
@@ -42,4 +48,7 @@ public class GetSongDetailsHandler(ISearchService searchService, ISpotifyService
 
 }
 public sealed record GetSongDetailsQuery(string Id) : IQuery<SongResult>; // MusicQuery
+
+
+public sealed record SongResult(Song Song);
 

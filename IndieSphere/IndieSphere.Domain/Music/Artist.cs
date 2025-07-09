@@ -1,5 +1,4 @@
-﻿
-using IndieSphere.Domain.LastFm;
+﻿using IndieSphere.Domain.LastFm;
 using IndieSphere.Domain.Search;
 
 namespace IndieSphere.Domain.Music;
@@ -10,11 +9,14 @@ public class Artist
     public string Name { get; set; }
     public string Url { get; set; }
     public List<Genre> Genres { get; set; } = new();
-     public List<string> Images { get; set; } = new(); // URLs to artist images
+    public List<string> Images { get; set; } = new(); // URLs to artist images
     public long Followers { get; set; }
     public int Popularity { get; set; }
+    public string Bio { get; set; }
+    public List<Song> TopTracks { get; set; } = new();
+    public List<Album> TopAlbums { get; set; } = new();
+    public List<Artist> SimilarArtists { get; set; } = new();
     public string Match { get; set; }
-
 
     public static Artist MapLastFmArtist(SimilarArtist artist)
     {
