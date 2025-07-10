@@ -1,8 +1,6 @@
 ﻿using IndieSphere.Domain.LastFm;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using static IndieSphere.Infrastructure.LastFm.LastFmService;
 
 namespace IndieSphere.Infrastructure.LastFm;
 public interface ILastFmService

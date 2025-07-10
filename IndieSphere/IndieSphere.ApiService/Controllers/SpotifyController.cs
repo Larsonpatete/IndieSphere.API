@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SpotifyAPI.Web;
@@ -9,55 +10,48 @@ public class SpotifyController(IConfiguration config) : ApiControllerBase
 {
     private readonly IConfiguration _configuration = config;
 
-    // Initiate Spotify login
     [HttpGet("login")]
     public IActionResult Login(string returnUrl = "/")
     {
-        return Challenge(new AuthenticationProperties
-        {
-            RedirectUri = Url.Action("UserInfo")
-        }, "Spotify");
+        return Challenge(new AuthenticationProperties { RedirectUri = returnUrl }, "Spotify");
     }
 
     [HttpGet("callback")]
     public async Task<IActionResult> Callback()
     {
-        Console.WriteLine("do you ever hit");
-        // Authentication is handled by middleware, just redirect to success
-        return RedirectToAction("GetToken");
+        return Redirect("http://localhost:3000/login-success"); // change in prod
     }
-
-    // Get access token
-    [Authorize]
-    [HttpGet("token")]
-    public IActionResult GetToken()
-    {
-        var accessToken = HttpContext.GetTokenAsync("access_token").Result;
-        return Content($"Access Token: {accessToken}");
-    }
-
     [HttpGet("logout")]
     public async Task<IActionResult> Logout()
     {
-        await HttpContext.SignOutAsync();
-        return Redirect("/");
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Redirect("http://localhost:3000/");
     }
 
+    [Authorize] 
     [HttpGet("me")]
-    public IActionResult GetCurrentUser()
+    public async Task<IActionResult> GetCurrentUser()
     {
-        if (User.Identity?.IsAuthenticated != true) // Check for null and authentication
-            return Unauthorized();
-
-        return Ok(new
+        var accessToken = await HttpContext.GetTokenAsync("access_token");
+        if (string.IsNullOrEmpty(accessToken))
         {
-            Id = User.FindFirst("sub")?.Value,
-            Name = User.FindFirst("urn:spotify:name")?.Value
-        });
+            return Unauthorized("Access token not found.");
+        }
+
+        var spotify = new SpotifyClient(accessToken);
+
+        try
+        {
+            var userProfile = await spotify.UserProfile.Current();
+            
+            return Ok(userProfile);
+        }
+        catch (APIException ex)
+        {
+            // Handle cases where the token might be expired or invalid.
+            return StatusCode((int)ex.Response.StatusCode, ex.Message);
+        }
     }
-
-
-
 
     // Your existing recommendations endpoint
     [HttpGet("recommendations")]
@@ -79,81 +73,5 @@ public class SpotifyController(IConfiguration config) : ApiControllerBase
             .ToList();
 
         return Ok(unknownArtists);
-    }
-
-    private async Task<string> GetClientCredentialsToken()
-    {
-        var config = SpotifyClientConfig.CreateDefault();
-        var request = new ClientCredentialsRequest(
-            _configuration["Spotify:ClientId"],
-            _configuration["Spotify:ClientSecret"]);
-        var response = await new OAuthClient(config).RequestToken(request);
-        return response.AccessToken;
-    }
-
-    [HttpGet("search")]
-    public async Task<IActionResult> Search(string query)
-    {
-        //var token = await GetClientCredentialsToken();
-        //var spotify = new SpotifyClient(token);
-
-        //var results = await spotify.Search.Item(new SearchRequest(
-        //    SearchRequest.Types.All,
-        //    query));
-
-        //if (results?.Tracks?.Items == null)
-        //{
-        //    return Ok(Enumerable.Empty<Song>());
-        //}
-
-        //var songs = results.Tracks.Items.Select(t =>
-        //{
-        //    if (t == null) return null;
-
-        //    // Get first artist
-        //    var primaryArtist = t.Artists?.FirstOrDefault();
-        //    var artistName = primaryArtist?.Name ?? string.Empty;
-
-        //    // Get artist Spotify URL
-        //    Uri artistUrl = null;
-        //    if (primaryArtist?.ExternalUrls?.ContainsKey("spotify") == true)
-        //    {
-        //        Uri.TryCreate(primaryArtist.ExternalUrls["spotify"], UriKind.Absolute, out artistUrl);
-        //    }
-
-        //    // Get track Spotify URL
-        //    Uri trackUrl = null;
-        //    if (t.ExternalUrls?.ContainsKey("spotify") == true)
-        //    {
-        //        Uri.TryCreate(t.ExternalUrls["spotify"], UriKind.Absolute, out trackUrl);
-        //    }
-
-        //    // Get album image (try to get the medium size first, fall back to any available image)
-        //    Uri albumImageUrl = null;
-        //    if (t.Album?.Images?.Count > 0)
-        //    {
-        //        // Try to get medium (300px) image first, or the first available if not found
-        //        var image = t.Album.Images.FirstOrDefault(i => i.Height == 300 || i.Width == 300)
-        //                   ?? t.Album.Images.FirstOrDefault();
-
-        //        if (image?.Url != null)
-        //        {
-        //            Uri.TryCreate(image.Url, UriKind.Absolute, out albumImageUrl);
-        //        }
-        //    }
-        //    var albumName = t.Album?.Name ?? string.Empty;
-
-        //    return new Song(
-        //        t.Name ?? "Unknown Track",
-        //        artistName,
-        //        artistUrl,
-        //        trackUrl,
-        //        albumImageUrl,
-        //        albumName
-        //    );
-        //}).Where(song => song != null);
-
-        //return Ok(songs);
-        return Ok();
     }
 }

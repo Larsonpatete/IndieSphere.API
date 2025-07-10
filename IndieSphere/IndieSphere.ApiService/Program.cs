@@ -3,9 +3,7 @@ using IndieSphere.Application;
 using IndieSphere.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OAuth;
-
-
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,101 +17,58 @@ builder.Services
     .AddOpenApi()
     .AddApplicationServices(builder.Configuration)
     .AddInfrastructureServices(connectionString)
-    .AddControllers()
-    ;
-
-// Add JWT validation for Google tokens
-//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//    .AddJwtBearer(options =>
-//    {
-//        options.Authority = "https://accounts.google.com";
-//        options.TokenValidationParameters = new TokenValidationParameters
-//        {
-//            ValidIssuer = "accounts.google.com",
-//            ValidAudience = builder.Configuration["Authentication:Google:ClientId"],
-//            ValidateIssuer = true,
-//            ValidateAudience = true,
-//            ValidateLifetime = true
-//        };
-//    });
+    .AddControllers();
 
 builder.Services.AddAuthentication(options =>
 {
+    // The default scheme for signing in and out is cookies.
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+
+    // When a user needs to log in, they will be challenged with the Spotify scheme.
     options.DefaultChallengeScheme = "Spotify";
 })
-.AddCookie()
+.AddCookie(options =>
+{
+    // Your existing settings
+    options.LoginPath = "/api/spotify/login";
+
+    // Add these cross-domain cookie settings
+    options.Cookie.SameSite = SameSiteMode.None;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.HttpOnly = true;
+})
 .AddOAuth("Spotify", options =>
 {
-    // Update the assignment to handle potential null values using null-coalescing operator or throw an exception if null.
-    options.ClientId = builder.Configuration["Spotify:ClientId"] ?? throw new InvalidOperationException("Spotify:ClientId is not configured.");
-    options.ClientSecret = builder.Configuration["Spotify:ClientSecret"] ?? throw new InvalidOperationException("Spotify:ClientSecret is not configured.");
+    options.ClientId = builder.Configuration["Spotify:ClientId"];
+    options.ClientSecret = builder.Configuration["Spotify:ClientSecret"];
     options.CallbackPath = new PathString("/api/spotify/callback");
 
-    // Spotify OAuth endpoints
+    // Spotify's OAuth 2.0 endpoints.
     options.AuthorizationEndpoint = "https://accounts.spotify.com/authorize";
     options.TokenEndpoint = "https://accounts.spotify.com/api/token";
     options.UserInformationEndpoint = "https://api.spotify.com/v1/me";
-    
-    // Set the full redirect URI
-    var redirectUri = builder.Configuration["Spotify:RedirectUri"];
-    if (!string.IsNullOrEmpty(redirectUri))
-    {
-        options.Events = new OAuthEvents
-        {
-            OnRedirectToAuthorizationEndpoint = context =>
-            {
-                // Build the authorization URL manually with all required parameters
-                var parameters = new Dictionary<string, string>
-                {
-                    ["client_id"] = options.ClientId,
-                    ["response_type"] = "code",
-                    ["redirect_uri"] = redirectUri,
-                    ["scope"] = string.Join(" ", options.Scope),
-                    ["state"] = context.Properties.Items[".xsrf"]
-                };
-                
-                // Add any additional parameters from original request
-                foreach (var item in context.Properties.Items)
-                {
-                    if (item.Key.StartsWith("oauth.") && 
-                        !parameters.ContainsKey(item.Key.Substring("oauth.".Length)))
-                    {
-                        parameters[item.Key.Substring("oauth.".Length)] = item.Value;
-                    }
-                }
-                
-                // Build the query string
-                var queryString = string.Join("&", parameters.Select(kvp => 
-                    $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}"));
-                
-                // Redirect to the authorization endpoint with our custom URL
-                context.Response.Redirect($"{options.AuthorizationEndpoint}?{queryString}");
-                return Task.CompletedTask;
-            }
-        };
-    }
 
-    // Add scopes
-    options.Scope.Add("user-top-read");
-    options.Scope.Add("user-read-recently-played");
+    // Define the scopes your application needs.
     options.Scope.Add("user-read-private");
     options.Scope.Add("user-read-email");
 
-    // Save tokens
+    // This tells the handler to save the access_token and refresh_token from Spotify.
     options.SaveTokens = true;
 
-    // Map Spotify claims
-    options.ClaimActions.MapJsonKey("sub", "id");
-    options.ClaimActions.MapJsonKey("urn:spotify:name", "display_name");
+    // Map user data from Spotify to claims in the user's identity.
+    options.ClaimActions.MapJsonKey(ClaimTypes.NameIdentifier, "id");
+    options.ClaimActions.MapJsonKey(ClaimTypes.Name, "display_name");
+    options.ClaimActions.MapJsonKey(ClaimTypes.Email, "email");
+    options.ClaimActions.MapJsonKey("urn:spotify:profile", "external_urls:spotify");
 });
+
 
 
 builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("BlazorUI", policy =>
+    options.AddPolicy("ReactUI", policy =>
     {
         policy.WithOrigins("http://localhost:3000")
               .AllowAnyHeader()
@@ -122,6 +77,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+
 if (!builder.Environment.IsDevelopment())
 {
     var keyVaultUrl = builder.Configuration["KeyVault:Url"]; // TODO: add KeyVault URL to configuration
@@ -129,8 +86,6 @@ if (!builder.Environment.IsDevelopment())
         new Uri(keyVaultUrl ?? "https://indiesphere-kv.vault.azure.net/"),
         new DefaultAzureCredential());
 }
-
-
 
 var app = builder.Build();
 
@@ -142,11 +97,26 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-app.UseCors("BlazorUI");
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "OPTIONS")
+    {
+        // Handle preflight requests for all auth endpoints
+        context.Response.Headers.Add("Access-Control-Allow-Origin", "http://localhost:3000");
+        context.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+        context.Response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+        context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+        context.Response.StatusCode = 204;
+        return;
+    }
+
+    await next();
+});
+
+app.UseCors("ReactUI");
 
 app.Run();
