@@ -185,6 +185,8 @@ public class TopTracksResponse
     // This property can also be 'tracks' for other endpoints like chart.getTopTracks
     [JsonPropertyName("tracks")]
     public TopTracksContainer Tracks { get; set; }
+
+
 }
 
 public class TopTracksContainer
@@ -233,6 +235,19 @@ public class TopTrack
 
     [JsonPropertyName("image")]
     public List<LastFmImage> Images { get; set; }
+    public static TopTrack MapLastFmTopTrackToTopTrack(LastFmTopTrack src)
+    {
+        return new TopTrack
+        {
+            Name = src.Name,
+            Playcount = src.Playcount,
+            Listeners = src.Listeners,
+            Url = src.Url,
+            Artist = src.Artist,
+            Images = src.Image, // Note: property name difference
+                                // Set other properties to null/default as needed
+        };
+    }
 }
 
 public class TrackAttributes
@@ -307,3 +322,4 @@ public class LastFmTopAlbum
     [JsonPropertyName("image")]
     public List<LastFmImage> Image { get; set; }
 }
+

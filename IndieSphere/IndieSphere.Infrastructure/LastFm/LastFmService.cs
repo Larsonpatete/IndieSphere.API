@@ -8,7 +8,7 @@ public interface ILastFmService
     Task<LastFmTrackInfo> GetTrackInfo(string artist, string track);
     Task<IEnumerable<SimilarTrack>> GetSimilarSongs(string track, string artist, int limit = 20);
     Task<LastFmArtist> GetArtistInfo(string artist);
-    Task<IEnumerable<SimilarArtist>> GetSimilarArtists(string artist, int limit = 20);
+    Task<IEnumerable<SimilarArtist>> GetSimilarArtists(string artist, int limit = 10);
     Task<IEnumerable<TopTrack>> GetTopSongsByCountryAsync(string country, int limit = 20);
     Task<IEnumerable<LastFmTopTrack>> GetArtistTopTracks(string artist, int limit = 10);
     Task<IEnumerable<LastFmTopAlbum>> GetArtistTopAlbums(string artist, int limit = 10);
@@ -25,7 +25,7 @@ public class LastFmService : ILastFmService
         _apiKey = _configuration["LastFm:ApiKey"];
         _httpClient = new HttpClient
         {
-            BaseAddress = new Uri("http://ws.audioscrobbler.com/2.0/")
+            BaseAddress = new Uri("https://ws.audioscrobbler.com/2.0/")
         };
     }
 

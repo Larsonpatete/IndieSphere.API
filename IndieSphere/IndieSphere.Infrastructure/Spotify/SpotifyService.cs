@@ -1,7 +1,7 @@
 ﻿using IndieSphere.Domain.Helper;
 using IndieSphere.Domain.Music;
 using IndieSphere.Domain.Search;
-using IndieSphere.Infrastructure.ContentModeration;
+using IndieSphere.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using SpotifyAPI.Web;
 
@@ -17,23 +17,46 @@ public interface ISpotifyService
     Task<List<Song>> GetAlbumSongs(string albumId, int limit = 30, int offset = 0);
 }
 
-public class SpotifyService(IConfiguration config, IContentModerationService contentModeration) : ISpotifyService
+public class SpotifyService(IConfiguration config, IUserContext userContext) : ISpotifyService
 {
     private readonly IConfiguration _config = config;
-    private readonly IContentModerationService _contentModerationService = contentModeration;
-    private async Task<string> GetClientCredentialsToken()
+    private readonly IUserContext _userContext = userContext;
+    private async Task<SpotifyClient> CreateSpotifyClientAsync()
     {
-        var config = SpotifyClientConfig.CreateDefault();
+        var accessToken = _userContext.GetSpotifyAccessToken();
+
+        if (!string.IsNullOrEmpty(accessToken))
+        {
+            return new SpotifyClient(accessToken);
+        }
+
+        // Fallback to client credentials flow for anonymous users.
+        var clientConfig = SpotifyClientConfig.CreateDefault();
         var request = new ClientCredentialsRequest(
             _config["Spotify:ClientId"],
             _config["Spotify:ClientSecret"]);
-        var response = await new OAuthClient(config).RequestToken(request);
-        return response.AccessToken;
+        var response = await new OAuthClient(clientConfig).RequestToken(request);
+        return new SpotifyClient(response);
     }
+    //private async Task<bool> IsUserAuthenticated()
+    //{
+    //    var context = _httpContext.HttpContext;
+    //    if (context?.User?.Identity?.IsAuthenticated != true)
+    //    {
+    //        return false;
+    //    }
+
+    //    // By calling AuthenticateAsync, we force the cookie handler to read the
+    //    // authentication ticket and load the tokens into its properties.
+    //    var result = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    //    var accessToken = result.Properties?.GetTokenValue("access_token");
+
+    //    return !string.IsNullOrEmpty(accessToken);
+    //}
+
     public async Task<SearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0)
     {
-        var token = await GetClientCredentialsToken();
-        var spotify = new SpotifyClient(token);
+        var spotify = await CreateSpotifyClientAsync();
 
         var searchRequest = new SearchRequest(SearchRequest.Types.Track, query)
         {
@@ -68,15 +91,8 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
     }
     public async Task<Song> GetSongDetailsAsync(string id)
     {
-
-
-        var token = await GetClientCredentialsToken();
-        Console.WriteLine("Access Token: " + token);
-
-        // Create client without 'using'
-        var spotify = new SpotifyClient(token);
-
-        // Get track info
+        var spotify = await CreateSpotifyClientAsync();
+        FullTrack fullTrack;
 
         if (id.Contains("--"))
         {
@@ -94,140 +110,39 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
             };
 
             var results = await spotify.Search.Item(searchRequest);
-            var track = results?.Tracks?.Items?.FirstOrDefault();
-            if (track == null)
-                return null;
-
-            // Use your mapping method for consistency
-            return await MapSpotifyTrackToSong(track);
+            fullTrack = results?.Tracks?.Items?.FirstOrDefault();
+        }
+        else
+        {
+            fullTrack = await spotify.Tracks.Get(id);
         }
 
-        // Standard Spotify ID lookup
-        var fullTrack = await spotify.Tracks.Get(id);
         if (fullTrack == null)
             return null;
 
+        TrackAudioFeatures audioFeatures = null;
+        // We can now reliably check if the user is authenticated.
+        if (_userContext.IsAuthenticated)
+        {
+            try
+            {
+                audioFeatures = await spotify.Tracks.GetAudioFeatures(fullTrack.Id);
+            }
+            catch (APIException ex)
+            {
+                // This can happen if the token is valid for auth but has expired for API calls.
+                // The service should handle this gracefully.
+                Console.WriteLine($"Could not retrieve audio features for track {fullTrack.Id}: {ex.Message}");
+            }
+        }
 
-        return await MapSpotifyTrackToSong(fullTrack);
-
-        //try
-        //{
-        //    var audioFeatures = await spotify.Tracks.GetAudioFeatures(id);
-        //}
-        //catch (APIException ex)
-        //{
-        //    // Capture detailed error information
-        //    var errorDetails = new StringBuilder();
-        //    errorDetails.AppendLine($"Spotify API Exception: {ex.Message}");
-        //    errorDetails.AppendLine($"Status Code: {ex.Response?.StatusCode}");
-
-        //    if (ex.Response?.Headers != null)
-        //    {
-        //        errorDetails.AppendLine("Headers:");
-        //        foreach (var header in ex.Response.Headers)
-        //        {
-        //            errorDetails.AppendLine($"{header.Key}: {string.Join(",", header.Value)}");
-        //        }
-        //    }
-
-        //    errorDetails.AppendLine($"Response Body: {ex.Response?.Body}");
-
-        //    // Store for debugging
-        //    var errorInfo = errorDetails.ToString();
-        //    Console.WriteLine(errorInfo);
-
-        //    // Optional: Throw a more informative exception
-        //    throw new Exception($"Audio features error for track {id}\n{errorInfo}", ex);
-        //}
-        //var album = await spotify.Albums.Get(track.Album.Id);
-
-        //TrackAudioFeatures audioFeatures = null;
-        //try
-        //{
-        //    audioFeatures = await spotify.Tracks.GetAudioFeatures(id);
-        //}
-        //catch (APIException ex)
-        //{
-        //    var builder = new StringBuilder();
-        //    builder.AppendLine($"⚠️ Spotify API error:");
-        //    builder.AppendLine($"  - Message: {ex.Message}");
-        //    builder.AppendLine($"  - Status Code: {(int)ex.Response.StatusCode} {ex.Response.StatusCode}");
-
-        //    if (ex.Response.Headers != null)
-        //    {
-        //        builder.AppendLine("  - Headers:");
-        //        foreach (var header in ex.Response.Headers)
-        //        {
-        //            builder.AppendLine($"    {header.Key}: {string.Join(", ", header.Value)}");
-        //        }
-        //    }
-
-        //    builder.AppendLine($"  - Body: {ex.Response.Body}");
-
-        //    Console.WriteLine(builder.ToString());
-
-        //    // Optional: rethrow with more detail if needed
-        //    throw new Exception($"Spotify API failed getting audio features for {id}", ex);
-        //}
-
-
-        // Create the song with the basic mapping
-        //var song = new Song
-        //{
-        //    Id = track.Id,
-        //    Title = track.Name,
-        //    Artist = new Artist
-        //    {
-        //        Id = track.Artists[0].Id,
-        //        Name = track.Artists[0].Name,
-        //        // You could get more artist details with another call if needed
-        //    },
-        //    Album = track.Album.Name,
-        //    AlbumImageUrl = track.Album.Images.FirstOrDefault()?.Url,
-        //    TrackUrl = track.ExternalUrls.ContainsKey("spotify") ? track.ExternalUrls["spotify"] : null,
-        //    DurationMs = track.DurationMs,
-        //    IsExplicit = track.Explicit,
-        //    Popularity = track.Popularity,
-        //    PreviewUrl = track.PreviewUrl,
-
-        //    // Date handling
-        //    ReleaseDate = ParseSpotifyDate(track.Album.ReleaseDate, track.Album.ReleaseDatePrecision),
-        //    ReleaseDatePrecision = track.Album.ReleaseDatePrecision,
-
-        //    // Audio features from the audio features endpoint
-        //    //Energy = audioFeatures?.Energy ?? 0,
-        //    //Danceability = audioFeatures?.Danceability ?? 0,
-        //    //Acousticness = audioFeatures?.Acousticness ?? 0,
-        //    //Instrumentalness = audioFeatures?.Instrumentalness ?? 0,
-        //    //Liveness = audioFeatures?.Liveness ?? 0,
-        //    //Tempo = audioFeatures?.Tempo ?? 0,
-        //    //Key = audioFeatures?.Key ?? -1,
-
-        //    // Derived data
-        //    ObscurityRating = CalculateObscurityRating(track.Popularity),
-        //    //MoodCategory = DetermineMood(
-        //    //    audioFeatures?.Energy ?? 0,
-        //    //    audioFeatures?.Valence ?? 0,
-        //    //    audioFeatures?.Tempo ?? 0)
-        //};
-
-        //Add genres from the album
-        //if (album != null && album.Genres?.Count > 0)
-        //{
-        //    song.Genres = album.Genres.Select(g => new Genre { Name = g }).ToList();
-        //}
-
-        //You could potentially make additional API calls here for Last.fm or MusicBrainz data
-        // if you want to include that in this method
-
-        //return song;
+        return await MapSpotifyTrackToSong(fullTrack, audioFeatures);
     }
 
 
     public async Task EnrichWithSpotify(List<Song> songs)
     {
-        var token = await GetClientCredentialsToken();
-        var spotify = new SpotifyClient(token);
+        var spotify = await CreateSpotifyClientAsync();
 
         foreach (var song in songs)
         {
@@ -274,8 +189,7 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
 
     public async Task<SearchResult<Artist>> SearchArtistsAsync(string query, int limit = 20, int offset = 0)
     {
-        var token = await GetClientCredentialsToken();
-        var spotify = new SpotifyClient(token);
+        var spotify = await CreateSpotifyClientAsync();
         var searchRequest = new SearchRequest(SearchRequest.Types.Artist, query)
         {
             Limit = limit,
@@ -320,9 +234,8 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
 
     public async Task<Artist> GetArtistDetailsAsync(string id)
     {
-        var token = await GetClientCredentialsToken();
-        var spotify = new SpotifyClient(token);
-        
+        var spotify = await CreateSpotifyClientAsync();
+
         if (id.Contains("-"))
         {
             var parsedQuery = id.Replace("-", " ");
@@ -350,8 +263,7 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
 
     public async Task EnrichArtistWithSpotify(List<Artist> artists)
     {
-        var token = await GetClientCredentialsToken();
-        var spotify = new SpotifyClient(token);
+        var spotify = await CreateSpotifyClientAsync();
 
         foreach (var artist in artists)
         {
@@ -383,8 +295,7 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
     }
     public async Task<List<Song>> GetAlbumSongs(string albumId, int limit = 30, int offset = 0)
     {
-        var token = await GetClientCredentialsToken();
-        var spotify = new SpotifyClient(token);
+        var spotify = await CreateSpotifyClientAsync();
         var album = await spotify.Albums.Get(albumId);
         if (album == null || album.Tracks?.Items == null)
             return new List<Song>();
@@ -392,6 +303,25 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
             .Where(t => t != null)
             .Select(t => MapSpotifyTrackToSong(t))
             .ToList();
+    }
+
+    private async Task<Song> MapSpotifyTrackToSong(FullTrack track, TrackAudioFeatures audioFeatures)
+    {
+        var song = await MapSpotifyTrackToSong(track);
+
+        if (audioFeatures != null)
+        {
+            song.Energy = audioFeatures.Energy;
+            song.Danceability = audioFeatures.Danceability;
+            song.Acousticness = audioFeatures.Acousticness;
+            song.Instrumentalness = audioFeatures.Instrumentalness;
+            song.Liveness = audioFeatures.Liveness;
+            song.Tempo = audioFeatures.Tempo;
+            song.Key = audioFeatures.Key;
+            song.MoodCategory = DetermineMood(audioFeatures.Energy, audioFeatures.Valence, audioFeatures.Tempo);
+        }
+
+        return song;
     }
 
     private async Task<Song> MapSpotifyTrackToSong(FullTrack track)
@@ -446,7 +376,8 @@ public class SpotifyService(IConfiguration config, IContentModerationService con
             ReleaseDate = releaseDate,
             ReleaseDatePrecision = album?.ReleaseDatePrecision,
             Popularity = track.Popularity,
-            PreviewUrl = track.PreviewUrl
+            PreviewUrl = track.PreviewUrl,
+            ObscurityRating = CalculateObscurityRating(track.Popularity)
         };
     }
 

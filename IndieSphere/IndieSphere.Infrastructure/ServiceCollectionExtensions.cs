@@ -3,6 +3,7 @@ using IndieSphere.Infrastructure.ContentModeration;
 using IndieSphere.Infrastructure.LastFm;
 using IndieSphere.Infrastructure.NLP;
 using IndieSphere.Infrastructure.Search;
+using IndieSphere.Infrastructure.Security;
 using IndieSphere.Infrastructure.Spotify;
 using IndieSphere.Infrastructure.Users;
 using Microsoft.Data.SqlClient;
@@ -17,7 +18,7 @@ public static class ServiceCollectionExtensions
         TypeHandlers.Register(); // add mapping to domain specific types
 
         services
-            .AddScoped<IDbConnection>(container => container.GetRequiredService<SqlConnection>())
+            .AddScoped<IDbConnection>(container => container.GetRequiredService<SqlConnection>()) // singleton, transient? what
             .AddScoped(_ => new SqlConnection(connectionString))
             .AddTransient<IGetUsers, GetUsers>()
             .AddTransient<INlpService, NlpService>()
@@ -25,6 +26,8 @@ public static class ServiceCollectionExtensions
             .AddTransient<ISpotifyService, SpotifyService>()
             .AddTransient<ILastFmService, LastFmService>()
             .AddTransient<IContentModerationService, ContentModerationService>()
+            .AddScoped<IUserContext, HttpContextUserContext>()
+            .AddScoped<ITokenService, TokenService>()
             ;
 
         //var reposWithKeys = typeof(IRepository<,>);

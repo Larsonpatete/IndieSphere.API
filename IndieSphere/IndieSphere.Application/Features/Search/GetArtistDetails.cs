@@ -1,4 +1,5 @@
-﻿using IndieSphere.Domain.Music;
+﻿using IndieSphere.Domain.LastFm;
+using IndieSphere.Domain.Music;
 using IndieSphere.Infrastructure.LastFm;
 using IndieSphere.Infrastructure.Spotify;
 using MediatR;
@@ -15,17 +16,17 @@ public class GetArtistDetailsHandler(ISpotifyService spotifyService, ILastFmServ
 
         try
         {
-            var lastFmArtistTask = _lastFmService.GetArtistInfo(artist.Name);
-            var topTracksTask = _lastFmService.GetArtistTopTracks(artist.Name);
-            var topAlbumsTask = _lastFmService.GetArtistTopAlbums(artist.Name);
-            var similarArtistsTask = _lastFmService.GetSimilarArtists(artist.Name);
+            var lastFmArtist = await _lastFmService.GetArtistInfo(artist.Name);
+            //IEnumerable<LastFmTopTrack> topTracks = await _lastFmService.GetArtistTopTracks(artist.Name);
+            IEnumerable<LastFmTopAlbum> topAlbums = await _lastFmService.GetArtistTopAlbums(artist.Name);
+            var similarArtists = await _lastFmService.GetSimilarArtists(artist.Name);
 
-            await Task.WhenAll(lastFmArtistTask, topTracksTask, topAlbumsTask, similarArtistsTask);
+            //await Task.WhenAll(lastFmArtistTask, topTracksTask, topAlbumsTask, similarArtistsTask);
 
-            var lastFmArtist = await lastFmArtistTask;
-            var topTracks = await topTracksTask;
-            var topAlbums = await topAlbumsTask;
-            var similarArtists = await similarArtistsTask;
+            //var lastFmArtist =  lastFmArtistTask;
+            //var topTracks =  topTracksTask;
+            //var topAlbums =  topAlbumsTask;
+            //var similarArtists =  similarArtistsTask;
 
             // Populate artist details
             //if (lastFmArtist?.Bio?.Summary is not null)
@@ -33,9 +34,12 @@ public class GetArtistDetailsHandler(ISpotifyService spotifyService, ILastFmServ
             //    artist.Bio = lastFmArtist.Bio.Summary;
             //}
 
-            //artist.TopTracks = topTracks.Select(Song.MapLastFmTopTrackToSong).ToList();
-            //artist.TopAlbums = topAlbums.Select(Album.MapLastFmTopAlbumToAlbum).ToList();
-            //artist.SimilarArtists = similarArtists.Select(Artist.MapLastFmArtist).ToList();
+            IEnumerable<LastFmTopTrack> lastFmTopTracks = await _lastFmService.GetArtistTopTracks(artist.Name);
+            IEnumerable<TopTrack> topTracks = lastFmTopTracks.Select(TopTrack.MapLastFmTopTrackToTopTrack);
+
+            artist.TopTracks = topTracks.Select(Song.MapLastFmTopTrackToSong).ToList();
+            artist.TopAlbums = topAlbums.Select(Album.MapLastFmTopAlbumToAlbum).ToList();
+            artist.SimilarArtists = similarArtists.Select(Artist.MapLastFmArtist).ToList();
 
 
         }
