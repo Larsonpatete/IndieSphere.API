@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -29,8 +30,10 @@ builder.Services
 
 builder.Services.AddAuthentication(options =>
 {
-    // Use cookies for the OAuth flow
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    // Default to JWT for authenticating API requests
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+
     options.DefaultChallengeScheme = "Spotify";
 })
 .AddCookie(options =>
@@ -80,11 +83,16 @@ builder.Services.AddAuthentication(options =>
 
             // 2. Create the claims for your application's identity.
             using var user = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var imageUrl = user.RootElement.TryGetProperty("images", out var images) && images.GetArrayLength() > 0
+                ? images[0].GetProperty("url").GetString()
+                : null;
+
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.RootElement.GetString("id")),
                 new Claim(ClaimTypes.Name, user.RootElement.GetString("display_name")),
                 new Claim(ClaimTypes.Email, user.RootElement.GetString("email")),
+                new Claim("urn:spotify:profile_image_url", imageUrl ?? "")
                 //new Claim("urn:spotify:access_token", accessToken)
             };
 
