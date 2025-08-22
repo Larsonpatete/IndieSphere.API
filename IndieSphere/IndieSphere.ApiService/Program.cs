@@ -1,12 +1,12 @@
 using Azure.Identity;
 using IndieSphere.Application;
+using IndieSphere.Application.Features.Users;
 using IndieSphere.Infrastructure;
 using IndieSphere.Infrastructure.Security;
+using MediatR;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OAuth;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -20,12 +20,17 @@ builder.AddServiceDefaults();
 
 var connectionString = builder.Configuration.GetConnectionString("IndieSphereDb");
 
+// Ensure the connection string is not null or empty
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'IndieSphereDb' not found.");
+}
 builder.Services
     .AddProblemDetails()
     .AddOpenApi()
     .AddHttpContextAccessor()
     .AddApplicationServices(builder.Configuration)
-    .AddInfrastructureServices(connectionString)
+    .AddInfrastructureServices(builder.Configuration)
     .AddControllers();
 
 builder.Services.AddAuthentication(options =>
@@ -76,27 +81,48 @@ builder.Services.AddAuthentication(options =>
         {
             // 1. Get the access token and fetch the user profile from Spotify.
             var accessToken = context.AccessToken;
+            var refreshToken = context.RefreshToken;
+            var expiresAt = context.ExpiresIn.HasValue
+                ? DateTime.UtcNow.AddSeconds(context.ExpiresIn.Value.TotalSeconds)
+                : DateTime.UtcNow.AddHours(1);
+
             var request = new HttpRequestMessage(HttpMethod.Get, context.Options.UserInformationEndpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var response = await context.Backchannel.SendAsync(request, context.HttpContext.RequestAborted);
             response.EnsureSuccessStatusCode();
 
-            // 2. Create the claims for your application's identity.
+            // 2. Create or update the user in your database.
             using var user = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             var imageUrl = user.RootElement.TryGetProperty("images", out var images) && images.GetArrayLength() > 0
                 ? images[0].GetProperty("url").GetString()
                 : null;
 
+            var spotifyId = user.RootElement.GetString("id");
+            var displayName = user.RootElement.GetString("display_name");
+            var email = user.RootElement.GetString("email");
+
+            // 2. Create or update the user in your database.
+            var mediator = context.HttpContext.RequestServices.GetRequiredService<IMediator>();
+            var userId = await mediator.Send(new CreateOrUpdateUserCommand(
+                spotifyId,
+                displayName,
+                email,
+                accessToken,
+                refreshToken,
+                expiresAt
+            ));
+
+            // 3. Create the claims for your application's identity.
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.RootElement.GetString("id")),
-                new Claim(ClaimTypes.Name, user.RootElement.GetString("display_name")),
-                new Claim(ClaimTypes.Email, user.RootElement.GetString("email")),
-                new Claim("urn:spotify:profile_image_url", imageUrl ?? "")
-                //new Claim("urn:spotify:access_token", accessToken)
+                new(ClaimTypes.NameIdentifier, userId.ToString()), // Use your app's user ID
+                new(ClaimTypes.Name, displayName),
+                new(ClaimTypes.Email, email),
+                new("urn:spotify:profile_image_url", imageUrl ?? ""),
+                new("urn:spotify:id", spotifyId) // Keep Spotify ID for reference if needed
             };
 
-            // 3. Replace the context principal with your new claims identity.
+            // 4. Replace the context principal with your new claims identity.
             context.Principal = new ClaimsPrincipal(new ClaimsIdentity(claims, context.Scheme.Name));
         },
 

@@ -17,18 +17,16 @@ public interface ISpotifyService
     Task<List<Song>> GetAlbumSongs(string albumId, int limit = 30, int offset = 0);
 }
 
-public class SpotifyService(IConfiguration config, IUserContext userContext) : ISpotifyService
+public class SpotifyService(IConfiguration config) : ISpotifyService
 {
     private readonly IConfiguration _config = config;
-    private readonly IUserContext _userContext = userContext;
     private async Task<SpotifyClient> CreateSpotifyClientAsync()
     {
-        var accessToken = _userContext.GetSpotifyAccessToken();
 
-        if (!string.IsNullOrEmpty(accessToken))
-        {
-            return new SpotifyClient(accessToken);
-        }
+        //if (!string.IsNullOrEmpty(accessToken))
+        //{
+        //    return new SpotifyClient(accessToken);
+        //}
 
         // Fallback to client credentials flow for anonymous users.
         var clientConfig = SpotifyClientConfig.CreateDefault();
@@ -122,19 +120,19 @@ public class SpotifyService(IConfiguration config, IUserContext userContext) : I
 
         TrackAudioFeatures audioFeatures = null;
         // We can now reliably check if the user is authenticated.
-        if (_userContext.IsAuthenticated)
-        {
-            try
-            {
-                audioFeatures = await spotify.Tracks.GetAudioFeatures(fullTrack.Id);
-            }
-            catch (APIException ex)
-            {
-                // This can happen if the token is valid for auth but has expired for API calls.
-                // The service should handle this gracefully.
-                Console.WriteLine($"Could not retrieve audio features for track {fullTrack.Id}: {ex.Message}");
-            }
-        }
+        //if (_userContext.IsAuthenticated)
+        //{
+        //    try
+        //    {
+        //        audioFeatures = await spotify.Tracks.GetAudioFeatures(fullTrack.Id);
+        //    }
+        //    catch (APIException ex)
+        //    {
+        //        // This can happen if the token is valid for auth but has expired for API calls.
+        //        // The service should handle this gracefully.
+        //        Console.WriteLine($"Could not retrieve audio features for track {fullTrack.Id}: {ex.Message}");
+        //    }
+        //}
 
         return await MapSpotifyTrackToSong(fullTrack, audioFeatures);
     }

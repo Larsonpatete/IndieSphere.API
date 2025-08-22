@@ -78,7 +78,8 @@ public class SpotifyController(IConfiguration config, ITokenService tokenService
             Id = userId,
             DisplayName = User.FindFirstValue(ClaimTypes.Name),
             Email = User.FindFirstValue(ClaimTypes.Email),
-            ProfileUrl = User.FindFirstValue("urn:spotify:profile_image_url")
+            ProfileUrl = User.FindFirstValue("urn:spotify:profile_image_url"),
+            SpotifyId = User.FindFirstValue("urn:spotify:id")
         };
 
         return Ok(userProfile);
