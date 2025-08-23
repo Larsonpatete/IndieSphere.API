@@ -1,9 +1,11 @@
 ﻿using IndieSphere.Domain.Helper;
 using IndieSphere.Domain.Music;
 using IndieSphere.Domain.Search;
-using IndieSphere.Infrastructure.Security;
+using IndieSphere.Infrastructure.Users;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using SpotifyAPI.Web;
+using System.Security.Claims;
 
 namespace IndieSphere.Infrastructure.Spotify;
 public interface ISpotifyService
@@ -17,24 +19,56 @@ public interface ISpotifyService
     Task<List<Song>> GetAlbumSongs(string albumId, int limit = 30, int offset = 0);
 }
 
-public class SpotifyService(IConfiguration config) : ISpotifyService
+public class SpotifyService(IConfiguration config, IHttpContextAccessor httpContextAccessor, IUserRepository userRepository) : ISpotifyService
 {
     private readonly IConfiguration _config = config;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+    private readonly IUserRepository _userRepository = userRepository;
+    private bool isAuthenticated = false;
+
     private async Task<SpotifyClient> CreateSpotifyClientAsync()
     {
+        var userPrincipal = _httpContextAccessor.HttpContext?.User;
+        var spotifyId = userPrincipal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        //if (!string.IsNullOrEmpty(accessToken))
-        //{
-        //    return new SpotifyClient(accessToken);
-        //}
+        if (!string.IsNullOrEmpty(spotifyId))
+        {
+            var user = await _userRepository.FindBySpotifyIdAsync(spotifyId);
+            if (user != null && !string.IsNullOrEmpty(user.SpotifyAccessToken) && !string.IsNullOrEmpty(user.SpotifyRefreshToken))
+            {
+                 //Check if the token is expired or close to expiring (e.g., within 5 minutes)
+                if (user.AccessTokenExpiresAt.HasValue && user.AccessTokenExpiresAt.Value.AddMinutes(-5) < DateTime.UtcNow)
+                {
+                    // Token is expired, refresh it
+                    var newResponse = await new OAuthClient().RequestToken(
+                        new AuthorizationCodeRefreshRequest(_config["Spotify:ClientId"]!, _config["Spotify:ClientSecret"]!, user.SpotifyRefreshToken)
+                    );
+
+                    user.SpotifyAccessToken = newResponse.AccessToken;
+                    user.AccessTokenExpiresAt = DateTime.UtcNow.AddSeconds(newResponse.ExpiresIn);
+                    // Note: Spotify might not send a new refresh token. Only update if it's provided.
+                    if (!string.IsNullOrEmpty(newResponse.RefreshToken))
+                    {
+                        user.SpotifyRefreshToken = newResponse.RefreshToken;
+                    }
+                    await _userRepository.UpdateAsync(user);
+
+                    return new SpotifyClient(user.SpotifyAccessToken);
+                }
+
+                isAuthenticated = true;
+                // Token is valid, use it
+                return new SpotifyClient(user.SpotifyAccessToken);
+            }
+        }
 
         // Fallback to client credentials flow for anonymous users.
         var clientConfig = SpotifyClientConfig.CreateDefault();
         var request = new ClientCredentialsRequest(
-            _config["Spotify:ClientId"],
-            _config["Spotify:ClientSecret"]);
+            _config["Spotify:ClientId"]!,
+            _config["Spotify:ClientSecret"]!);
         var response = await new OAuthClient(clientConfig).RequestToken(request);
-        return new SpotifyClient(response);
+        return new SpotifyClient(response.AccessToken);
     }
     //private async Task<bool> IsUserAuthenticated()
     //{
@@ -119,20 +153,20 @@ public class SpotifyService(IConfiguration config) : ISpotifyService
             return null;
 
         TrackAudioFeatures audioFeatures = null;
-        // We can now reliably check if the user is authenticated.
-        //if (_userContext.IsAuthenticated)
-        //{
-        //    try
-        //    {
-        //        audioFeatures = await spotify.Tracks.GetAudioFeatures(fullTrack.Id);
-        //    }
-        //    catch (APIException ex)
-        //    {
-        //        // This can happen if the token is valid for auth but has expired for API calls.
-        //        // The service should handle this gracefully.
-        //        Console.WriteLine($"Could not retrieve audio features for track {fullTrack.Id}: {ex.Message}");
-        //    }
-        //}
+        //We can now reliably check if the user is authenticated.
+        if (isAuthenticated)
+        {
+            try
+            {
+                audioFeatures = await spotify.Tracks.GetAudioFeatures(fullTrack.Id);
+            }
+            catch (APIException ex)
+            {
+                // This can happen if the token is valid for auth but has expired for API calls.
+                // The service should handle this gracefully.
+                Console.WriteLine($"Could not retrieve audio features for track {fullTrack.Id}: {ex.Message}");
+            }
+        }
 
         return await MapSpotifyTrackToSong(fullTrack, audioFeatures);
     }
