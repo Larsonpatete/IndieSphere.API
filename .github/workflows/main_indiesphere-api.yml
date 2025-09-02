@@ -24,7 +24,7 @@ jobs:
           dotnet-version: '9.x'
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build IndieSphere.ApiService/IndieSphere.ApiService.csproj --configuration Release
 
       - name: dotnet publish
         run: dotnet publish IndieSphere.ApiService/IndieSphere.ApiService.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
@@ -64,3 +64,4 @@ jobs:
           package: .
 
           
+
