@@ -24,10 +24,10 @@ jobs:
           dotnet-version: '9.x'
 
       - name: Build with dotnet
-        run: dotnet build IndieSphere.ApiService/IndieSphere.ApiService.csproj --configuration Release
+        run: dotnet build IndieSphere/IndieSphere.ApiService/IndieSphere.ApiService.csproj --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish IndieSphere.ApiService/IndieSphere.ApiService.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish IndieSphere/IndieSphere.ApiService/IndieSphere.ApiService.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -64,4 +64,5 @@ jobs:
           package: .
 
           
+
 
