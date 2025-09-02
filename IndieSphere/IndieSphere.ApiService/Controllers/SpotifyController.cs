@@ -1,4 +1,6 @@
-﻿using IndieSphere.Infrastructure.Security;
+﻿using IndieSphere.Application.Features.Spotify;
+using IndieSphere.Infrastructure.Security;
+using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -7,10 +9,11 @@ using System.Security.Claims;
 
 namespace IndieSphere.ApiService.Controllers;
 
-public class SpotifyController(IConfiguration config, ITokenService tokenService) : ApiControllerBase
+public class SpotifyController(IConfiguration config, ITokenService tokenService, IMediator mediator) : ApiControllerBase
 {
     private readonly IConfiguration _configuration = config;
     private readonly ITokenService _tokenService = tokenService;
+    private readonly IMediator MediatR = mediator;
 
     [HttpGet("login")]
     public IActionResult Login()
@@ -19,7 +22,7 @@ public class SpotifyController(IConfiguration config, ITokenService tokenService
         // This lets the middleware complete the flow without your callback
         var properties = new AuthenticationProperties
         {
-            RedirectUri = "http://localhost:3000/"
+            RedirectUri = _configuration["Frontend:BaseUrl"]
         };
 
         return Challenge(properties, "Spotify");
@@ -36,7 +39,7 @@ public class SpotifyController(IConfiguration config, ITokenService tokenService
             if (!result.Succeeded)
             {
                 Console.WriteLine($"Authentication failed: {result.Failure?.Message}");
-                return Redirect("http://localhost:3000/login-failed");
+                return Redirect($"{_configuration["Frontend:BaseUrl"]}/login-failed");
             }
 
             // Get claims from Spotify OAuth
@@ -45,12 +48,12 @@ public class SpotifyController(IConfiguration config, ITokenService tokenService
             // Create JWT token for our app
             var jwtToken = _tokenService.CreateToken(claims);
 
-            return Redirect($"http://localhost:3000/login-success?token={jwtToken}");
+            return Redirect($"{_configuration["Frontend:BaseUrl"]}/login-success?token={jwtToken}");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error in callback: {ex}");
-            return Redirect("http://localhost:3000/login-failed");
+            return Redirect($"{_configuration["Frontend:BaseUrl"]}/login-failed");
         }
     }
 
@@ -58,7 +61,7 @@ public class SpotifyController(IConfiguration config, ITokenService tokenService
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return Redirect("http://localhost:3000/");
+        return Redirect(_configuration["Frontend:BaseUrl"]);
     }
 
     [Authorize]
@@ -83,5 +86,13 @@ public class SpotifyController(IConfiguration config, ITokenService tokenService
         };
 
         return Ok(userProfile);
+    }
+
+    [Authorize]
+    [HttpGet("top-stats")]
+    public async Task<IActionResult> GetTopStats()
+    {
+        var results = await MediatR.Send(new GetTopStatsQuery());
+        return Ok(results);
     }
 }

@@ -73,6 +73,7 @@ builder.Services.AddAuthentication(options =>
 
     options.Scope.Add("user-read-private");
     options.Scope.Add("user-read-email");
+    options.Scope.Add("user-top-read");
     options.SaveTokens = true;
 
     options.Events = new OAuthEvents
@@ -136,7 +137,8 @@ builder.Services.AddAuthentication(options =>
             var jwtToken = tokenService.CreateToken(context.Principal.Claims);
 
             // 2. Build the redirect URI for your frontend.
-            var redirectUrl = $"http://localhost:3000/login-success?token={jwtToken}";
+            var frontendUrl = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Frontend:BaseUrl"];
+            var redirectUrl = $"{frontendUrl}/login-success?token={jwtToken}";
 
             // 3. Redirect the user's browser to the frontend with the token.
             context.Response.Redirect(redirectUrl);
@@ -155,7 +157,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactUI", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins(builder.Configuration["Frontend:BaseUrl"]!)
               .AllowAnyHeader()
               .AllowAnyMethod(); // No need for AllowCredentials with tokens
     });

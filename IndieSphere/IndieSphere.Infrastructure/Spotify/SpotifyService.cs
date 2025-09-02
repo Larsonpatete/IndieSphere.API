@@ -17,6 +17,8 @@ public interface ISpotifyService
     Task<Artist> GetArtistDetailsAsync(string Id);
     Task EnrichArtistWithSpotify(List<Artist> artists);
     Task<List<Song>> GetAlbumSongs(string albumId, int limit = 30, int offset = 0);
+    Task<List<Song>> GetUserTopTracksAsync(int limit = 20, int offset = 0, string timeRange = "medium_term");
+    Task<List<Artist>> GetUserTopArtistsAsync(int limit = 20, int offset = 0, string timeRange = "medium_term");
 }
 
 public class SpotifyService(IConfiguration config, IHttpContextAccessor httpContextAccessor, IUserRepository userRepository) : ISpotifyService
@@ -29,7 +31,7 @@ public class SpotifyService(IConfiguration config, IHttpContextAccessor httpCont
     private async Task<SpotifyClient> CreateSpotifyClientAsync()
     {
         var userPrincipal = _httpContextAccessor.HttpContext?.User;
-        var spotifyId = userPrincipal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var spotifyId = userPrincipal?.FindFirst("urn:spotify:id")?.Value;
 
         if (!string.IsNullOrEmpty(spotifyId))
         {
@@ -70,21 +72,6 @@ public class SpotifyService(IConfiguration config, IHttpContextAccessor httpCont
         var response = await new OAuthClient(clientConfig).RequestToken(request);
         return new SpotifyClient(response.AccessToken);
     }
-    //private async Task<bool> IsUserAuthenticated()
-    //{
-    //    var context = _httpContext.HttpContext;
-    //    if (context?.User?.Identity?.IsAuthenticated != true)
-    //    {
-    //        return false;
-    //    }
-
-    //    // By calling AuthenticateAsync, we force the cookie handler to read the
-    //    // authentication ticket and load the tokens into its properties.
-    //    var result = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    //    var accessToken = result.Properties?.GetTokenValue("access_token");
-
-    //    return !string.IsNullOrEmpty(accessToken);
-    //}
 
     public async Task<SearchResult<Song>> SearchSongsAsync(string query, int limit = 20, int offset = 0)
     {
@@ -335,6 +322,100 @@ public class SpotifyService(IConfiguration config, IHttpContextAccessor httpCont
             .Where(t => t != null)
             .Select(t => MapSpotifyTrackToSong(t))
             .ToList();
+    }
+    public async Task<List<Song>> GetUserTopTracksAsync(int limit = 20, int offset = 0, string timeRange = "medium_term")
+    {
+        var spotify = await CreateSpotifyClientAsync();
+
+        // This endpoint requires a user-authenticated client.
+        // The isAuthenticated flag is set within CreateSpotifyClientAsync.
+        if (!isAuthenticated)
+        {
+            // Return an empty list or throw an exception if the user is not authenticated.
+            return new List<Song>();
+        }
+
+        var timeRangeEnum = timeRange.ToLower() switch
+        {
+            "long_term" => PersonalizationTopRequest.TimeRange.LongTerm,
+            "short_term" => PersonalizationTopRequest.TimeRange.ShortTerm,
+            _ => PersonalizationTopRequest.TimeRange.MediumTerm,
+        };
+
+        var topTracksRequest = new PersonalizationTopRequest
+        {
+            Limit = limit,
+            Offset = offset,
+            TimeRangeParam = timeRangeEnum
+        };
+
+        try
+        {
+            var topTracksResponse = await spotify.Personalization.GetTopTracks(topTracksRequest);
+
+            if (topTracksResponse?.Items == null)
+            {
+                return new List<Song>();
+            }
+
+            var songs = await Task.WhenAll(
+                topTracksResponse.Items
+                    .Where(t => t != null)
+                    .Select(async t => await MapSpotifyTrackToSong(t))
+            );
+
+            return songs.ToList();
+        }
+        catch (APIException ex)
+        {
+            // Log the exception (optional)
+            Console.WriteLine($"Error fetching top tracks: {ex.Message}");
+            // Return an empty list if the API call fails
+            return new List<Song>();
+        }
+    }
+    public async Task<List<Artist>> GetUserTopArtistsAsync(int limit = 20, int offset = 0, string timeRange = "medium_term")
+    {
+        var spotify = await CreateSpotifyClientAsync();
+        // This endpoint requires a user-authenticated client.
+        // The isAuthenticated flag is set within CreateSpotifyClientAsync.
+        if (!isAuthenticated)
+        {
+            // Return an empty list or throw an exception if the user is not authenticated.
+            return new List<Artist>();
+        }
+        var timeRangeEnum = timeRange.ToLower() switch
+        {
+            "long_term" => PersonalizationTopRequest.TimeRange.LongTerm,
+            "short_term" => PersonalizationTopRequest.TimeRange.ShortTerm,
+            _ => PersonalizationTopRequest.TimeRange.MediumTerm,
+        };
+        var topArtistsRequest = new PersonalizationTopRequest
+        {
+            Limit = limit,
+            Offset = offset,
+            TimeRangeParam = timeRangeEnum
+        };
+        try
+        {
+            var topArtistsResponse = await spotify.Personalization.GetTopArtists(topArtistsRequest);
+            if (topArtistsResponse?.Items == null)
+            {
+                return new List<Artist>();
+            }
+            var artists = topArtistsResponse.Items
+                .Where(a => a != null)
+                .Select(a => MapSpotifyArtistToArtist(a))
+                .ToList();
+            return artists;
+        }
+        catch (APIException ex)
+        {
+            // Log the exception (optional)
+            Console.WriteLine($"Error fetching top artists: {ex.Message}");
+            // Return an empty list if the API call fails
+            return new List<Artist>();
+        }
     }
 
     private async Task<Song> MapSpotifyTrackToSong(FullTrack track, TrackAudioFeatures audioFeatures)

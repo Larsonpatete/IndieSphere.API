@@ -22,7 +22,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> FindBySpotifyIdAsync(string spotifyId)
     {
-        const string sql = "SELECT * FROM Users WHERE Id = @SpotifyId";
+        const string sql = "SELECT * FROM Users WHERE SpotifyId = @SpotifyId";
         return await _connection.QuerySingleOrDefaultAsync<User>(sql, new { SpotifyId = spotifyId });
     }
 
