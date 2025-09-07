@@ -20,13 +20,30 @@ builder.AddServiceDefaults();
 
 if (!builder.Environment.IsDevelopment())
 {
-    var keyVaultUrl = builder.Configuration["KeyVault:Url"]; // TODO: add KeyVault URL to configuration
-    builder.Configuration.AddAzureKeyVault(
-        new Uri(keyVaultUrl ?? "https://indiesphere-kv.vault.azure.net/"),
-        new DefaultAzureCredential());
+    var keyVaultUrl = builder.Configuration["KeyVault:Url"];
+    Console.WriteLine($"Key Vault URL: {keyVaultUrl}");
+
+    if (!string.IsNullOrEmpty(keyVaultUrl))
+    {
+        builder.Configuration.AddAzureKeyVault(
+            new Uri(keyVaultUrl),
+            new DefaultAzureCredential());
+    }
+    else
+    {
+        Console.WriteLine("Key Vault URL is null or empty");
+    }
+}
+
+// Debug: List all configuration values
+var allConfig = builder.Configuration.AsEnumerable();
+foreach (var config in allConfig)
+{
+    Console.WriteLine($"{config.Key}: {config.Value}");
 }
 
 var connectionString = builder.Configuration.GetConnectionString("IndieSphereDb");
+Console.WriteLine($"Connection string: {connectionString ?? "NULL"}");
 
 // Ensure the connection string is not null or empty
 if (string.IsNullOrEmpty(connectionString))
