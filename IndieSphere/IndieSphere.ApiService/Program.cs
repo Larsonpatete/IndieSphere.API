@@ -18,6 +18,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
+if (!builder.Environment.IsDevelopment())
+{
+    var keyVaultUrl = builder.Configuration["KeyVault:Url"]; // TODO: add KeyVault URL to configuration
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUrl ?? "https://indiesphere-kv.vault.azure.net/"),
+        new DefaultAzureCredential());
+}
+
 var connectionString = builder.Configuration.GetConnectionString("IndieSphereDb");
 
 // Ensure the connection string is not null or empty
@@ -163,13 +171,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-if (!builder.Environment.IsDevelopment())
-{
-    var keyVaultUrl = builder.Configuration["KeyVault:Url"]; // TODO: add KeyVault URL to configuration
-    builder.Configuration.AddAzureKeyVault(
-        new Uri(keyVaultUrl ?? "https://indiesphere-kv.vault.azure.net/"),
-        new DefaultAzureCredential());
-}
+
 
 var app = builder.Build();
 
