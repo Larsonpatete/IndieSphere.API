@@ -9,13 +9,13 @@ namespace IndieSphere.Application.Features.Search;
 
 public class SearchSongsHandler : IRequestHandler<SearchSongsQuery, SearchResult<Song>>
 {
-    private readonly INlpService _nlpService;
+    // private readonly INlpService _nlpService;
     private readonly ISearchService _searchService;
     private readonly ISpotifyService _spotifyService;
 
-    public SearchSongsHandler(INlpService nlpService, ISearchService searchService, ISpotifyService spotify)
+    public SearchSongsHandler(ISearchService searchService, ISpotifyService spotify)
     {
-        _nlpService = nlpService;
+        // _nlpService = nlpService;
         _searchService = searchService;
         _spotifyService = spotify;
     }

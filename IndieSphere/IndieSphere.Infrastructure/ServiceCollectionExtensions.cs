@@ -38,11 +38,11 @@ public static class ServiceCollectionExtensions
         TypeHandlers.Register(); // add mapping to domain specific types
 
         services
-            .AddTransient<INlpService, NlpService>()
+            // .AddTransient<INlpService, NlpService>()
             .AddTransient<ISearchService, SearchService>()
             .AddTransient<ISpotifyService, SpotifyService>()
             .AddTransient<ILastFmService, LastFmService>()
-            .AddTransient<IContentModerationService, ContentModerationService>()
+            // .AddTransient<IContentModerationService, ContentModerationService>()
             .AddScoped<ITokenService, TokenService>()
             .AddScoped<IUserRepository, UserRepository>()
             ;
